@@ -385,8 +385,8 @@ export default function AdamsPinball(){
       if(ball.fromLane&&ball.y<180)ball.fromLane=false;
 
       // ── Ramp guard walls ─────────────────────────────────────────────────
-      reflectSeg(ball,...LRAMP_GUARD as any,1.0);
-      reflectSeg(ball,...RRAMP_GUARD as any,1.0);
+      reflectSeg(ball,LRAMP_GUARD[0],LRAMP_GUARD[1],LRAMP_GUARD[2],LRAMP_GUARD[3],1.0);
+      reflectSeg(ball,RRAMP_GUARD[0],RRAMP_GUARD[1],RRAMP_GUARD[2],RRAMP_GUARD[3],1.0);
 
       // ── Orbit sensors ────────────────────────────────────────────────────
       {const dx=ball.x-LORBIT.cx,dy=ball.y-LORBIT.cy;
@@ -495,12 +495,12 @@ export default function AdamsPinball(){
       });
 
       // ── Lane guides (outlane/inlane walls) ────────────────────────────────
-      reflectSeg(ball,...L_OUT as any,0.7);
-      reflectSeg(ball,...L_IN as any,0.8);
-      reflectSeg(ball,...L_TRANS as any,0.7);
-      reflectSeg(ball,...L_ITRANS as any,0.8);
+      reflectSeg(ball,L_OUT[0],L_OUT[1],L_OUT[2],L_OUT[3],0.7);
+      reflectSeg(ball,L_IN[0],L_IN[1],L_IN[2],L_IN[3],0.8);
+      reflectSeg(ball,L_TRANS[0],L_TRANS[1],L_TRANS[2],L_TRANS[3],0.7);
+      reflectSeg(ball,L_ITRANS[0],L_ITRANS[1],L_ITRANS[2],L_ITRANS[3],0.8);
       if(!ball.fromLane){
-        reflectSeg(ball,...R_IN as any,0.8);
+        reflectSeg(ball,R_IN[0],R_IN[1],R_IN[2],R_IN[3],0.8);
         // R_OUT removed from physics — conflicts with LANE_X constraint
       }
 
