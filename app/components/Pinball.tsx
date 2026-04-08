@@ -31,23 +31,23 @@ const SLINGS:P[][] = [[WALL_L,368,WALL_L+58,502],[WALL_R,368,WALL_R-58,502]] as 
 // Lane guides (wall segments)
 // Left:  outlane = x < 68 | inlane = 68–102 | playfield = 102+
 // Right: playfield = 298– | inlane = 298–332 | outlane = 332–346
-const L_OUT:P[]=[68,550,68,648] as any;
-const L_IN:P[]=[102,536,102,640] as any;
-const R_IN:P[]=[298,536,298,640] as any;
-const R_OUT:P[]=[332,550,332,648] as any;
+const L_OUT:number[]=[68,550,68,648] as any;
+const L_IN:number[]=[102,536,102,640] as any;
+const R_IN:number[]=[298,536,298,640] as any;
+const R_OUT:number[]=[332,550,332,648] as any;
 
 // Diagonal connectors sling→guide
-const L_TRANS:P[]=[WALL_L+58,502,68,550] as any;
-const R_TRANS:P[]=[WALL_R-58,502,332,550] as any;
-const L_ITRANS:P[]=[68,550,102,536] as any;
-const R_ITRANS:P[]=[332,550,298,536] as any;
+const L_TRANS:number[]=[WALL_L+58,502,68,550] as any;
+const R_TRANS:number[]=[WALL_R-58,502,332,550] as any;
+const L_ITRANS:number[]=[68,550,102,536] as any;
+const R_ITRANS:number[]=[332,550,298,536] as any;
 
 // Ramps  (left ramp goes up left side then across top; right mirrors)
 const LRAMP_PATH:P[]=[[62,395],[34,230],[30,82],[148,54]];
 const RRAMP_PATH:P[]=[[338,395],[366,230],[370,82],[252,54]];
 // Left ramp guard wall (inner wall of ramp channel)
-const LRAMP_GUARD:P[]=[62,502,58,310] as any;
-const RRAMP_GUARD:P[]=[338,502,342,310] as any;
+const LRAMP_GUARD:number[]=[62,502,58,310] as any;
+const RRAMP_GUARD:number[]=[338,502,342,310] as any;
 
 // Bumpers (3 – tight cluster)
 const BUMPERS=[
