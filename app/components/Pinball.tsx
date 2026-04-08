@@ -1140,35 +1140,46 @@ export default function AdamsPinball(){
   const btn:React.CSSProperties={background:'none',border:'1px solid #5a3a00',borderRadius:4,color:'#c8900a',cursor:'pointer',fontSize:14,padding:'2px 8px',lineHeight:'1',fontFamily:'"Courier New",monospace'};
 
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',minHeight:'100dvh',background:'radial-gradient(ellipse at 50% 60%,#1a0028 0%,#060008 60%,#020004 100%)',userSelect:'none',overflow:'hidden'}}>
-      <div style={{transform:`scale(${scale})`,transformOrigin:'top center',width:W,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:4}}>
-      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:10,fontFamily:'"Times New Roman",serif'}}>
-        <span style={{color:'#7c22cc',fontSize:20,filter:'drop-shadow(0 0 6px #7c22cc)'}}>🕷</span>
-        <div style={{textAlign:'center'}}>
-          <div style={{color:'#c8900a',fontSize:24,fontWeight:'bold',letterSpacing:5,textShadow:'0 0 20px #c8900a,0 0 40px #c8900a88,0 0 60px #c8900a44'}}>ADDAMS MANSION</div>
-          <div style={{color:'#7c22cc',fontSize:10,letterSpacing:8,marginTop:1,textShadow:'0 0 10px #7c22cc'}}>✦  P I N B A L L  ✦</div>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100dvh',background:'radial-gradient(ellipse at 50% 60%,#1a0028 0%,#060008 60%,#020004 100%)',userSelect:'none',overflow:'hidden'}}>
+      {/* Title + controls — hidden on very small screens to save space */}
+      {scale>0.72&&(
+        <div style={{display:'flex',alignItems:'center',gap:Math.round(16*scale),marginBottom:Math.round(8*scale),fontFamily:'"Times New Roman",serif',transform:`scale(${scale})`,transformOrigin:'top center',whiteSpace:'nowrap'}}>
+          <span style={{color:'#7c22cc',fontSize:20,filter:'drop-shadow(0 0 6px #7c22cc)'}}>🕷</span>
+          <div style={{textAlign:'center'}}>
+            <div style={{color:'#c8900a',fontSize:24,fontWeight:'bold',letterSpacing:5,textShadow:'0 0 20px #c8900a,0 0 40px #c8900a88'}}>ADDAMS MANSION</div>
+            <div style={{color:'#7c22cc',fontSize:10,letterSpacing:8,marginTop:1}}>✦  P I N B A L L  ✦</div>
+          </div>
+          <span style={{color:'#7c22cc',fontSize:20,filter:'drop-shadow(0 0 6px #7c22cc)'}}>🕷</span>
+          <div style={{display:'flex',gap:6,marginLeft:8}}>
+            <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
+            <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
+          </div>
         </div>
-        <span style={{color:'#7c22cc',fontSize:20,filter:'drop-shadow(0 0 6px #7c22cc)'}}>🕷</span>
-        <div style={{display:'flex',gap:6,marginLeft:12}}>
-          <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
-          <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
+      )}
+      {/* Canvas — scaled via CSS width/height so layout compresses too */}
+      <canvas
+        ref={canvasRef}
+        width={W}
+        height={H}
+        style={{
+          display:'block',
+          touchAction:'none',
+          width:Math.round(W*scale),
+          height:Math.round(H*scale),
+          border:`${Math.max(1,Math.round(3*scale))}px solid #c8900a`,
+          borderRadius:3,
+          cursor:'default',
+          boxShadow:'0 0 40px rgba(124,34,204,0.4),0 0 80px rgba(200,144,10,0.15)',
+        }}
+      />
+      {scale>0.72&&(
+        <div style={{marginTop:8,display:'flex',gap:16,fontFamily:'"Courier New",monospace',fontSize:Math.round(10*scale),letterSpacing:1,transform:`scale(${scale})`,transformOrigin:'top center'}}>
+          <span style={{color:'#39c400'}}>Z/← LEFT</span>
+          <span style={{color:'#c8900a'}}>SPACE</span>
+          <span style={{color:'#39c400'}}>RIGHT →/X</span>
+          <span style={{color:'#cc1144'}}>MASH=TILT</span>
         </div>
-      </div>
-      <div style={{position:'relative',boxShadow:'0 0 60px rgba(124,34,204,0.5),0 0 120px rgba(200,144,10,0.2)',borderRadius:4}}>
-        <canvas ref={canvasRef} width={W} height={H} style={{display:'block',touchAction:'none',border:'3px solid #c8900a',borderRadius:3,cursor:'default'}}/>
-        <div style={{position:'absolute',top:0,left:-12,width:10,height:'100%',background:'linear-gradient(to right,#0a0010,#1a0030)',borderLeft:'1px solid #5a3000',borderRadius:'4px 0 0 4px'}}/>
-        <div style={{position:'absolute',top:0,right:-12,width:10,height:'100%',background:'linear-gradient(to left,#0a0010,#1a0030)',borderRight:'1px solid #5a3000',borderRadius:'0 4px 4px 0'}}/>
-      </div>
-      <div style={{marginTop:12,display:'flex',gap:22,fontFamily:'"Courier New",monospace',fontSize:10,letterSpacing:1}}>
-        <span style={{color:'#39c400',textShadow:'0 0 6px #39c400'}}>Z/← LEFT</span>
-        <span style={{color:'#c8900a'}}>SPACE LAUNCH</span>
-        <span style={{color:'#39c400',textShadow:'0 0 6px #39c400'}}>RIGHT →/X</span>
-        <span style={{color:'#cc1144'}}>MASH=TILT!</span>
-      </div>
-      <div style={{marginTop:5,color:'#3a1a5a',fontFamily:'"Times New Roman",serif',fontSize:11,fontStyle:'italic',textAlign:'center'}}>
-        ▲ Shoot ramps for 500pts &nbsp;·&nbsp; 🖐 THING = Multiball &nbsp;·&nbsp; ▼ Drop targets &nbsp;·&nbsp; Spell G·O·M·E·Z·?
-      </div>
-      </div>
+      )}
     </div>
   );
 }
