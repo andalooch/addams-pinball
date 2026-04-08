@@ -266,6 +266,18 @@ export default function AdamsPinball(){
   const bdRef=useRef<HTMLCanvasElement|null>(null);
   const [muted,setMuted]=useState(false);
   const [musicOn,setMusicOn]=useState(true);
+  const [scale,setScale]=useState(1);
+
+  useEffect(()=>{
+    function updateScale(){
+      const sx=window.innerWidth/W;
+      const sy=window.innerHeight/H;
+      setScale(Math.min(sx,sy,1));
+    }
+    updateScale();
+    window.addEventListener('resize',updateScale);
+    return()=>window.removeEventListener('resize',updateScale);
+  },[]);
 
   function getAudio(){
     if(muteRef.current)return null;
@@ -1096,13 +1108,13 @@ export default function AdamsPinball(){
       e.preventDefault();const s=sRef.current;ensureMusic();
       if(s.gameOver){sRef.current=mkState();return;}
       const rect=canvas.getBoundingClientRect();
-      Array.from(e.touches).forEach((t:Touch)=>{if(t.clientX-rect.left<W/2)s.leftUp=true;else s.rightUp=true;});
+      Array.from(e.touches).forEach((t:Touch)=>{if(t.clientX-rect.left<rect.width/2)s.leftUp=true;else s.rightUp=true;});
       if(s.inLane)s.charging=true;
     }
     function onTouchEnd(e:TouchEvent){
       e.preventDefault();const s=sRef.current;
       const rect=canvas.getBoundingClientRect();const ts=Array.from(e.touches);
-      if(!ts.some((t:any)=>t.clientX-rect.left<W/2))s.leftUp=false;
+      if(!ts.some((t:any)=>t.clientX-rect.left<rect.width/2))s.leftUp=false;
       if(!ts.some((t:any)=>t.clientX-rect.left>=W/2))s.rightUp=false;
       if(ts.length===0&&s.inLane&&s.charging){
         sfx('launch',s.plunger);s.balls.push({x:362,y:s.laneY,vx:-0.3,vy:-(s.plunger*19+5),fromLane:true});
@@ -1128,7 +1140,8 @@ export default function AdamsPinball(){
   const btn:React.CSSProperties={background:'none',border:'1px solid #5a3a00',borderRadius:4,color:'#c8900a',cursor:'pointer',fontSize:14,padding:'2px 8px',lineHeight:'1',fontFamily:'"Courier New",monospace'};
 
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'radial-gradient(ellipse at 50% 60%,#1a0028 0%,#060008 60%,#020004 100%)',userSelect:'none'}}>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',minHeight:'100dvh',background:'radial-gradient(ellipse at 50% 60%,#1a0028 0%,#060008 60%,#020004 100%)',userSelect:'none',overflow:'hidden'}}>
+      <div style={{transform:`scale(${scale})`,transformOrigin:'top center',width:W,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:4}}>
       <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:10,fontFamily:'"Times New Roman",serif'}}>
         <span style={{color:'#7c22cc',fontSize:20,filter:'drop-shadow(0 0 6px #7c22cc)'}}>🕷</span>
         <div style={{textAlign:'center'}}>
@@ -1154,6 +1167,7 @@ export default function AdamsPinball(){
       </div>
       <div style={{marginTop:5,color:'#3a1a5a',fontFamily:'"Times New Roman",serif',fontSize:11,fontStyle:'italic',textAlign:'center'}}>
         ▲ Shoot ramps for 500pts &nbsp;·&nbsp; 🖐 THING = Multiball &nbsp;·&nbsp; ▼ Drop targets &nbsp;·&nbsp; Spell G·O·M·E·Z·?
+      </div>
       </div>
     </div>
   );
