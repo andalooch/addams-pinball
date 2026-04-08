@@ -1129,16 +1129,10 @@ export default function AdamsPinball(){
 
   return(
     <div style={{
+      position:'fixed',inset:0,
       display:'flex',alignItems:'center',justifyContent:'center',
-      width:'100vw',height:'100dvh',background:'#030008',
-      overflow:'hidden',position:'relative',userSelect:'none',
+      background:'#030008',overflow:'hidden',userSelect:'none',
     }}>
-      {/* Sound controls — overlaid top-right corner */}
-      <div style={{position:'absolute',top:8,right:8,zIndex:10,display:'flex',gap:6}}>
-        <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
-        <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
-      </div>
-      {/* Canvas scales to fill screen via CSS — no JS needed */}
       <canvas
         ref={canvasRef}
         width={W}
@@ -1146,12 +1140,19 @@ export default function AdamsPinball(){
         style={{
           display:'block',
           touchAction:'none',
-          width:`min(100vw, calc(100dvh * ${W} / ${H}))`,
-          height:`min(100dvh, calc(100vw * ${H} / ${W}))`,
+          maxWidth:'100%',
+          maxHeight:'100%',
+          width:'auto',
+          height:'auto',
+          aspectRatio:`${W}/${H}`,
           border:'2px solid #c8900a',
-          boxShadow:'0 0 40px rgba(124,34,204,0.4),0 0 80px rgba(200,144,10,0.15)',
+          boxShadow:'0 0 40px rgba(124,34,204,0.4)',
         }}
       />
+      <div style={{position:'absolute',top:8,right:8,zIndex:10,display:'flex',gap:6}}>
+        <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
+        <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
+      </div>
     </div>
   );
 }
