@@ -738,15 +738,15 @@ export default function AdamsPinball(){
       // Labels and status
       if(captured){
         const jackNow=Math.round(pct*MAGNET.jackpot);
-        gl('#ff88ff',8);ctx.fillStyle='#ffbbff';ctx.font='bold 8px 'Courier New',monospace';ctx.textAlign='center';
+        gl('#ff88ff',8);ctx.fillStyle='#ffbbff';ctx.font="bold 8px 'Courier New',monospace";ctx.textAlign='center';
         ctx.fillText(`JACKPOT ${jackNow}`,MAGNET.x,MAGNET.y+32);ng();
       } else if(cooldown){
         const pctCD=1-mag.cooldown/MAGNET.cooldownFrames;
         ctx.fillStyle='rgba(80,0,80,0.6)';ctx.fillRect(MAGNET.x-22,MAGNET.y+24,44,5);
         ctx.fillStyle='rgba(180,80,180,0.8)';ctx.fillRect(MAGNET.x-22,MAGNET.y+24,44*pctCD,5);
-        ctx.fillStyle='#664466';ctx.font='bold 7px 'Courier New',monospace';ctx.textAlign='center';ctx.fillText('RECHARGING',MAGNET.x,MAGNET.y+36);
+        ctx.fillStyle='#664466';ctx.font="bold 7px 'Courier New',monospace";ctx.textAlign='center';ctx.fillText('RECHARGING',MAGNET.x,MAGNET.y+36);
       } else {
-        gl('#cc44cc',5);ctx.fillStyle='#dd88dd';ctx.font='bold 8px 'Courier New',monospace';ctx.textAlign='center';
+        gl('#cc44cc',5);ctx.fillStyle='#dd88dd';ctx.font="bold 8px 'Courier New',monospace";ctx.textAlign='center';
         ctx.fillText('🧲 MAGNET',MAGNET.x,MAGNET.y+32);ng();
       }
     }
