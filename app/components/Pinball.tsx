@@ -358,6 +358,87 @@ function buildBackdrop(modeColor='none'):HTMLCanvasElement{
   return oc;
 }
 
+// ── Module-level AudioContext singleton (iOS requires this pattern) ──────────
+let _sharedAC:AudioContext|null=null;
+function getSharedAC():AudioContext{
+  if(!_sharedAC){
+    const AC=(window as any).AudioContext||(window as any).webkitAudioContext;
+    _sharedAC=new AC();
+  }
+  return _sharedAC;
+}
+function resumeAC(){
+  if(!_sharedAC)return;
+  if(_sharedAC.state!=='running'){
+    _sharedAC.resume().catch(()=>{});
+    // Play a real inaudible tone — required on iOS 16+
+    try{
+      const g=_sharedAC.createGain();g.gain.value=0.0001;g.connect(_sharedAC.destination);
+      const o=_sharedAC.createOscillator();o.connect(g);o.start();o.stop(_sharedAC.currentTime+0.001);
+    }catch(e){}
+  }
+}
+// Unlock on page visibility restore (iOS suspends context on background)
+if(typeof document!=='undefined'){document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeAC();});}
+
+function buildAudio(){
+  const ac=getSharedAC();
+  const master=ac.createGain();master.gain.value=0.72;
+  const comp=ac.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=5;comp.connect(master);master.connect(ac.destination);
+  const mG=ac.createGain();mG.gain.value=0.42;mG.connect(comp);
+  const sG=ac.createGain();sG.gain.value=1.0;sG.connect(comp);
+  function osc(d:any,type:any,f:number,v:number,dur:number,fE?:number,t=ac.currentTime){
+    if(ac.state!=='running')return; // skip if not running
+    try{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(d);o.type=type;o.frequency.setValueAtTime(f,t);if(fE)o.frequency.exponentialRampToValueAtTime(fE,t+dur*0.85);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.02);}catch(e){}
+  }
+  function nz(d:any,v:number,dur:number,fHz=800,Q=1,t=ac.currentTime){
+    if(ac.state!=='running')return;
+    try{const len=Math.ceil(ac.sampleRate*dur),buf=ac.createBuffer(1,len,ac.sampleRate),da=buf.getChannelData(0);for(let i=0;i<len;i++)da[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=buf;f.type='bandpass';f.frequency.value=fHz;f.Q.value=Q;s.connect(f);f.connect(g);g.connect(d);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.start(t);s.stop(t+dur+0.02);}catch(e){}
+  }
+  function pB(f:number,t:number){osc(mG,'sine',f,0.65,STEP*3.8,f*0.97,t);osc(mG,'sine',f*0.5,0.25,STEP*3.5,undefined,t);}
+  function pL(f:number,t:number){osc(mG,'triangle',f,0.20,STEP*2.4,f*0.99,t);osc(mG,'sine',f*2,0.06,STEP*1.8,undefined,t);}
+  function pC(t:number){[[82.4*2,0.12],[98.0,0.10],[116.5,0.09],[69.3*2,0.08]].forEach(([f,v])=>osc(mG,'sine',f,v,STEP*5.5,f*0.998,t));osc(mG,'sawtooth',41.2,0.03,STEP*4,undefined,t);}
+  function pSn(t:number){nz(mG,0.22,0.025,3500,0.3,t);nz(mG,0.08,0.04,800,0.8,t);}
+  const sfx={
+    bumper(c:number){const b=c>=5?1.5:c>=3?1.25:1;osc(sG,'square',500*b,0.35,0.12,200*b);nz(sG,0.15,0.06,700,2);},
+    sling(){osc(sG,'sawtooth',340,0.3,0.09,85);nz(sG,0.2,0.06,1300,0.8);},
+    target(){osc(sG,'sine',1047,0.28,0.35,880);osc(sG,'sine',1319,0.12,0.25,1047,undefined,ac.currentTime+0.02);},
+    bonus(){[523,659,784,1047,1319].forEach((f,i)=>osc(sG,'square',f,0.2,0.22,f*0.9,ac.currentTime+i*0.07));},
+    flipper(){nz(sG,0.28,0.04,220,0.6);osc(sG,'sine',130,0.2,0.06,80);},
+    launch(p:number){const b=90+p*280;osc(sG,'sine',b*0.4,0.5,0.05,b*1.1);osc(sG,'triangle',b,0.35,0.28,b*0.25);nz(sG,0.2,0.12,400,1.5);},
+    wall(){nz(sG,0.1,0.04,500,0.5);osc(sG,'sine',180,0.07,0.04,120);},
+    drain(){osc(sG,'sawtooth',380,0.35,0.7,70);osc(sG,'sine',220,0.2,0.6,60,undefined,ac.currentTime+0.05);},
+    gameover(){[350,260,180,120].forEach((f,i)=>osc(sG,'sawtooth',f,0.28,0.4,f*0.7,ac.currentTime+i*0.18));},
+    ballsave(){osc(sG,'sine',880,0.3,0.12,1047);osc(sG,'sine',1047,0.2,0.1,880,undefined,ac.currentTime+0.12);},
+    kickback(){osc(sG,'square',200,0.4,0.08,600);nz(sG,0.35,0.1,800,1.5);},
+    tiltWarn(){osc(sG,'sawtooth',150,0.3,0.15,100);},
+    tilt(){[200,150,100].forEach((f,i)=>osc(sG,'sawtooth',f,0.4,0.3,f*0.6,ac.currentTime+i*0.12));},
+    kbRecharge(){osc(sG,'sine',660,0.2,0.2,880);osc(sG,'sine',880,0.15,0.15,1047,undefined,ac.currentTime+0.1);},
+    ramp(){[400,600,900].forEach((f,i)=>osc(sG,'square',f,0.22,0.2,f*1.1,ac.currentTime+i*0.06));},
+    drop(){osc(sG,'square',220,0.3,0.08,110);nz(sG,0.2,0.05,400,1);},
+    dropComplete(){[300,450,600,900].forEach((f,i)=>osc(sG,'square',f,0.2,0.15,f*1.1,ac.currentTime+i*0.055));},
+    spin(){nz(sG,0.1,0.03,1500,0.5);osc(sG,'sine',800,0.08,0.04,400);},
+    topLane(){osc(sG,'sine',660,0.2,0.15,880);},
+    topLaneAll(){[523,659,784,1047].forEach((f,i)=>osc(sG,'sine',f,0.2,0.25,f,ac.currentTime+i*0.06));},
+    orbit(){[800,1000,1200].forEach((f,i)=>osc(sG,'sine',f,0.2,0.2,f*1.1,ac.currentTime+i*0.05));},
+    lock(){[400,600,800].forEach((f,i)=>osc(sG,'square',f,0.3,0.25,f*0.8,ac.currentTime+i*0.1));nz(sG,0.2,0.1,300,1);},
+    multiball(){[262,330,392,523,659,784].forEach((f,i)=>osc(sG,'square',f,0.25,0.35,f,ac.currentTime+i*0.06));},
+    modeStart(){[400,500,630,800,1000].forEach((f,i)=>osc(sG,'sine',f,0.22,0.3,f*1.15,ac.currentTime+i*0.07));},
+    skillShot(){[800,1000,1300,1600].forEach((f,i)=>osc(sG,'square',f,0.28,0.2,f*1.1,ac.currentTime+i*0.05));},
+    bearTrap(){osc(sG,'sawtooth',120,0.4,0.08,60);nz(sG,0.4,0.1,300,1.5);[300,200].forEach((f,i)=>osc(sG,'square',f,0.3,0.2,f*0.5,ac.currentTime+i*0.06));},
+    swamp(){osc(sG,'sine',80,0.4,0.6,40);nz(sG,0.3,0.4,200,0.5);osc(sG,'sine',160,0.2,0.5,60,undefined,ac.currentTime+0.1);},
+    xball(){[800,1000,1300,1600,2000].forEach((f,i)=>osc(sG,'square',f,0.28,0.22,f*1.1,ac.currentTime+i*0.05));nz(sG,0.3,0.2,2000,1);},
+    chandHit(){osc(sG,'sine',880,0.25,0.35,660);osc(sG,'sine',1320,0.15,0.25,1100,undefined,ac.currentTime+0.02);nz(sG,0.08,0.05,3000,0.3);},
+    nudge(){nz(sG,0.4,0.08,150,0.8);osc(sG,'sine',80,0.3,0.12,60);},
+  };
+  let ss=0,nt=0,st:any=null,ip=false;
+  function sched(){
+    if(ac.state!=='running'){setTimeout(sched,100);return;} // wait for context to be running
+    while(nt<ac.currentTime+0.14){const s=ss%BASS.length;if(BASS[s])pB(BASS[s],nt);if(LEAD[s])pL(LEAD[s],nt);if(CHORD_S.has(s))pC(nt);if(SNAP[s])pSn(nt);ss++;nt+=STEP;}st=setTimeout(sched,40);
+  }
+  return{ac,master,startMusic(){if(ip)return;ip=true;nt=ac.currentTime+0.05;ss=0;sched();},stopMusic(){ip=false;clearTimeout(st);},get isPlaying(){return ip;},...sfx};
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AdamsPinball(){
   const canvasRef=useRef<HTMLCanvasElement>(null);
@@ -386,34 +467,26 @@ export default function AdamsPinball(){
   useEffect(()=>{setLeaderboard(loadLB());},[loadLB]);
 
   const unlockAudio=useCallback(()=>{
-    if(muteRef.current)return;
-    try{
-      if(!audioRef.current){audioRef.current=buildAudio();}
-      const a=audioRef.current;
-      const ac=a.ac;
-      // Play a 0-volume tone — the most reliable iOS unlock trigger
-      const g=ac.createGain();g.gain.value=0.001;g.connect(ac.destination);
-      const o=ac.createOscillator();o.connect(g);o.start(0);o.stop(0.01);
-      ac.resume().then(()=>{
-        setAudioUnlocked(true);setShowAudioPrompt(false);
-        if(!a.isPlaying)a.startMusic();
-      }).catch(()=>{});
-    }catch(e){console.warn('Audio unlock failed',e);}
+    // Initialize AC in user gesture context (required for iOS)
+    try{getSharedAC();}catch(e){}
+    resumeAC();
+    setAudioUnlocked(true);setShowAudioPrompt(false);
+    const a=getAudio();
+    if(a&&!a.isPlaying&&!muteRef.current)a.startMusic();
   },[]);
 
   function getAudio(){
     if(muteRef.current)return null;
-    if(!audioRef.current){try{audioRef.current=buildAudio();}catch(e){return null;}}
-    const a=audioRef.current;
-    if(a.ac.state!=='running')a.ac.resume().catch(()=>{});
-    return a;
+    resumeAC(); // always try — no-op if already running
+    if(!audioRef.current){try{audioRef.current=buildAudio();}catch(e){console.warn('audio fail',e);return null;}}
+    return audioRef.current;
   }
   function sfx(name:string,...args:any[]){const a=getAudio();if(a&&typeof a[name]==='function')a[name](...args);}
   function ensureMusic(){
+    resumeAC();
     const a=getAudio();if(!a||a.isPlaying||muteRef.current)return;
-    // iOS: resume is async — must wait for 'running' before scheduling audio
-    if(a.ac.state==='running'){a.startMusic();}
-    else{a.ac.resume().then(()=>{if(!a.isPlaying)a.startMusic();}).catch(()=>{});}
+    // startMusic() checks ac.state internally and retries
+    a.startMusic();
   }
 
   const mkState=useCallback(()=>({
@@ -443,7 +516,8 @@ export default function AdamsPinball(){
     // Accumulated bonus tracking
     bumperHits:0,
     standups:STANDUPS_DEF.map(t=>({...t})),
-    standupFlash:0, // all-lit flash
+    standupFlash:0,
+    nudgeCooldown:0, // frames until next nudge allowed
     // Bear trap
     bearTrap:{captured:false,capturedBall:null as any,captureTimer:0,cooldown:0,flash:0,jawAngle:0.8,jawOpen:true,completions:0},
     // Swamp
@@ -680,6 +754,15 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
           sfx('drain');vibe([50,30,80]);
         }
       }
+      // Anti-stuck: if ball barely moves for 2s, kick it free
+      s.balls.forEach((b:any)=>{
+        if(b.onRamp||s.bearTrap.capturedBall===b||s.swamp.capturedBall===b)return;
+        if(!b._stk)b._stk={frames:0,lx:b.x,ly:b.y};
+        const moved=Math.abs(b.x-b._stk.lx)+Math.abs(b.y-b._stk.ly);
+        if(moved<1.5){b._stk.frames++;if(b._stk.frames>120){b.vx=(Math.random()-0.5)*12;b.vy=-(Math.random()*10+6);b._stk.frames=0;shake(8,5);}}
+        else{b._stk.frames=0;b._stk.lx=b.x;b._stk.ly=b.y;}
+      });
+      if(s.nudgeCooldown>0)s.nudgeCooldown--;
       s.bumperFlash=s.bumperFlash.map((f:number)=>Math.max(0,f-1));s.slingFlash=s.slingFlash.map((f:number)=>Math.max(0,f-1));
       s.ballFlash=Math.max(0,s.ballFlash-1);s.kbFlash=Math.max(0,s.kbFlash-1);
       if(s.lightFrames>0)s.lightFrames--;if(s.comboTimer>0){s.comboTimer--;if(!s.comboTimer)s.combo=0;}
@@ -1190,14 +1273,26 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
 
     function loop(){update();draw();animRef.current=requestAnimationFrame(loop);}
 
-    function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
+    function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();resumeAC();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key==='ArrowLeft'&&e.shiftKey)doNudge('L');if(e.key==='ArrowRight'&&e.shiftKey)doNudge('R');if(e.key.toLowerCase()==='n')doNudge(Math.random()<0.5?'L':'R');if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
     function onKeyUp(e:KeyboardEvent){const s=sRef.current;if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=false;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=false;if((e.key===' '||e.key==='ArrowDown')&&s.inLane&&s.charging){e.preventDefault();sfx('launch',s.plunger);
         let kvx=-0.3;if(s.plunger<0.28){kvx=-2.2;}else if(s.plunger<0.56){kvx=-1.6;}else if(s.plunger<0.82){kvx=-0.8;}else{kvx=-0.2;}
         if(s.skillShotActive){const sz=SKILL_ZONES[s.skillShotTarget];if(s.plunger>=sz.min&&s.plunger<=sz.max){setTimeout(()=>{if(sRef.current){const sc=sRef.current;sc.score+=2500;sfx('skillShot');vibe([20,20,20,60]);addFloat(200,200,'SKILL SHOT! +2500','#ffff00');sc.skillShotActive=false;}},300);}}
         s.balls.push({x:362,y:s.laneY,vx:kvx,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
+    function doNudge(dir:'L'|'R'|'U'){
+      const s=sRef.current;if(s.gameOver||s.inLane||s.nudgeCooldown>0)return;
+      s.nudgeCooldown=120; // 2s cooldown
+      const force=dir==='L'?-8:dir==='R'?8:0;
+      s.balls.forEach((b:any)=>{if(b.onRamp)return;b.vx+=force+(Math.random()-0.5)*3;b.vy-=3+Math.random()*3;});
+      shake(14,8);sfx('nudge');vibe([30,20,30]);
+      // Counts toward tilt
+      s.rapidPresses+=3;s.rapidTimer=55;
+      addFloat(200,400,dir==='L'?'◀ NUDGE':dir==='R'?'NUDGE ▶':'NUDGE ▼','#cc8800');
+    }
+
     function onTouchStart(e:TouchEvent){
       e.preventDefault();
-      unlockAudio(); // always try to unlock on every touch
+      resumeAC();   // call directly on every touch — fastest possible unlock
+      unlockAudio();
       if(audioRef.current){
         const ac=audioRef.current.ac;
         if(ac.state!=='running'){
@@ -1270,6 +1365,19 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
                 <div style={{color:'rgba(200,144,10,0.6)',fontSize:10,marginTop:4,fontFamily:'"Courier New",monospace'}}>iOS requires a tap to unlock audio</div>
               </div>
             </div>}
+            {/* Nudge buttons — visible when ball is in play */}
+            {!sRef.current?.inLane&&!sRef.current?.gameOver&&!sRef.current?.bonusActive&&(
+              <div style={{position:'absolute',bottom:38,left:0,right:0,display:'flex',justifyContent:'space-between',padding:'0 8px',pointerEvents:'none',zIndex:5}}>
+                <button onPointerDown={e=>{e.preventDefault();unlockAudio();doNudge('L');}}
+                  style={{pointerEvents:'all',background:'rgba(0,0,0,0.7)',border:'1px solid #664400',borderRadius:6,color:'#cc8800',fontSize:11,padding:'5px 10px',fontFamily:'"Courier New",monospace',letterSpacing:1,touchAction:'none',opacity:sRef.current?.nudgeCooldown>0?0.35:0.85}}>
+                  ◀ NUDGE
+                </button>
+                <button onPointerDown={e=>{e.preventDefault();unlockAudio();doNudge('R');}}
+                  style={{pointerEvents:'all',background:'rgba(0,0,0,0.7)',border:'1px solid #664400',borderRadius:6,color:'#cc8800',fontSize:11,padding:'5px 10px',fontFamily:'"Courier New",monospace',letterSpacing:1,touchAction:'none',opacity:sRef.current?.nudgeCooldown>0?0.35:0.85}}>
+                  NUDGE ▶
+                </button>
+              </div>
+            )}
             {/* Initials entry overlay */}
             {showInitials&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.88)',zIndex:30}}>
               <div style={{background:'#0a0010',border:'2px solid #c8900a',borderRadius:10,padding:'28px 32px',textAlign:'center',minWidth:260}}>
