@@ -97,6 +97,12 @@ const MODES=[
 ];
 
 // ── Gothic diminished theme (BPM=104, chromatic descending bass) ────────────
+// Plunger skill shot zones (power ranges for skill shot)
+const SKILL_ZONES=[
+  {name:'ORBIT',   min:0.28,max:0.52,color:'#00ccff', vx:-1.8, vyMult:1.0},
+  {name:'TOP LANE',min:0.56,max:0.76,color:'#ffd700', vx:-0.6, vyMult:1.0},
+  {name:'RAMP',    min:0.82,max:1.00,color:'#ff4488', vx:-0.2, vyMult:1.0},
+];
 const BPM=104,STEP=60/BPM/4,_=0;
 // Chromatic bass: E2→Eb2→D2→Db2→C2→B1→C2→E2 (descending ominous line)
 const BASS=[82.4,_,_,_,77.8,_,_,_,73.4,_,_,_,69.3,_,_,_,65.4,_,_,_,61.7,_,_,_,65.4,_,_,_,82.4,_,_,_];
@@ -354,7 +360,7 @@ export default function AdamsPinball(){
     }
     function getMult(s:any,base=1):number{let m=base*Math.max(1,s.topLaneMult);if(s.modeIdx===4)m*=5;return m;}
 
-    function spawnLaneBall(){const s=sRef.current;s.inLane=true;s.charging=false;s.plunger=0;s.laneY=578;s.ballSaveTimer=0;s.tiltWarn=0;s.tilted=false;s.tiltTimer=0;s.rapidPresses=0;s.rapidTimer=0;s.skillShotActive=true;s.skillShotTimer=SKILL_SHOT_FRAMES;s.skillShotTarget=Math.floor(Math.random()*3);}
+    function spawnLaneBall(){const s=sRef.current;s.inLane=true;s.charging=false;s.plunger=0;s.laneY=578;s.ballSaveTimer=0;s.tiltWarn=0;s.tilted=false;s.tiltTimer=0;s.rapidPresses=0;s.rapidTimer=0;s.skillShotActive=true;s.skillShotTimer=SKILL_SHOT_FRAMES;s.skillShotTarget=Math.floor(Math.random()*SKILL_ZONES.length);}
 
     function checkRampEntry(ball:any,s:any){
       if(ball.onRamp||ball.vy>RAMP_MIN_VY)return;
@@ -813,7 +819,7 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
       } else {
         ctx.fillStyle='rgba(200,100,20,0.4)';ctx.font='bold 7px "Courier New",monospace';ctx.textAlign='center';ctx.fillText('▼  DROP TARGETS  ▼',185,302);
       }
-      s.drops.forEach((drop:any)=>{const fl=drop.flash>0,x=drop.x,y=drop.y,w=drop.w,h=drop.h;if(drop.down){ctx.save();ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=4;ctx.shadowOffsetY=2;ctx.fillStyle=fl?'rgba(255,120,0,0.6)':'rgba(30,12,0,0.7)';ctx.fillRect(x,y+h-3,w,4);ctx.restore();ctx.fillStyle='rgba(60,25,0,0.4)';ctx.fillRect(x+1,y+1,w-2,h-2);}else{ctx.save();ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=8;ctx.shadowOffsetX=2;ctx.shadowOffsetY=5;ctx.fillStyle='#000';ctx.fillRect(x,y,w,h);ctx.restore();const faceG=ctx.createLinearGradient(x,y,x,y+h);if(fl){faceG.addColorStop(0,'#ff9900');faceG.addColorStop(0.5,'#dd5500');faceG.addColorStop(1,'#992200');}else{faceG.addColorStop(0,'#ee5500');faceG.addColorStop(0.5,'#cc2200');faceG.addColorStop(1,'#881100');}ctx.fillStyle=faceG;ctx.fillRect(x,y,w,h);ctx.fillStyle=fl?'rgba(255,210,100,0.7)':'rgba(255,150,60,0.5)';ctx.fillRect(x+1,y,w-2,3);ctx.fillStyle=fl?'rgba(255,200,80,0.5)':'rgba(255,130,50,0.3)';ctx.fillRect(x,y,2,h);ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(x+w-2,y,2,h);ctx.fillRect(x,y+h-2,w,2);ctx.fillStyle=fl?'#fff':'rgba(255,220,160,0.9)';ctx.font='bold 7px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(`${drop.pts}`,x+w/2,y+h-1);if(fl){gl('#ff8800',12);ctx.strokeStyle='#ffaa44';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);ng();}}}});ctx.globalAlpha=1;
+      s.drops.forEach((drop:any)=>{const fl=drop.flash>0,x=drop.x,y=drop.y,w=drop.w,h=drop.h;if(drop.down){ctx.save();ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=4;ctx.shadowOffsetY=2;ctx.fillStyle=fl?'rgba(255,120,0,0.6)':'rgba(30,12,0,0.7)';ctx.fillRect(x,y+h-3,w,4);ctx.restore();ctx.fillStyle='rgba(60,25,0,0.4)';ctx.fillRect(x+1,y+1,w-2,h-2);}else{ctx.save();ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=8;ctx.shadowOffsetX=2;ctx.shadowOffsetY=5;ctx.fillStyle='#000';ctx.fillRect(x,y,w,h);ctx.restore();const faceG=ctx.createLinearGradient(x,y,x,y+h);if(fl){faceG.addColorStop(0,'#ff9900');faceG.addColorStop(0.5,'#dd5500');faceG.addColorStop(1,'#992200');}else{faceG.addColorStop(0,'#ee5500');faceG.addColorStop(0.5,'#cc2200');faceG.addColorStop(1,'#881100');}ctx.fillStyle=faceG;ctx.fillRect(x,y,w,h);ctx.fillStyle=fl?'rgba(255,210,100,0.7)':'rgba(255,150,60,0.5)';ctx.fillRect(x+1,y,w-2,3);ctx.fillStyle=fl?'rgba(255,200,80,0.5)':'rgba(255,130,50,0.3)';ctx.fillRect(x,y,2,h);ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(x+w-2,y,2,h);ctx.fillRect(x,y+h-2,w,2);ctx.fillStyle=fl?'#fff':'rgba(255,220,160,0.9)';ctx.font='bold 7px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(`${drop.pts}`,x+w/2,y+h-1);if(fl){gl('#ff8800',12);ctx.strokeStyle='#ffaa44';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);ng();}}});ctx.globalAlpha=1;
 
       // ── SPINNER ───────────────────────────────────────────────────────────
       {const fl=s.spinnerFlash>0,spinning=Math.abs(s.spinnerSpin)>1;const c=fl||spinning?'#00ffdd':'rgba(0,130,100,0.5)';gl(c,fl?18:spinning?12:4);const cos=Math.cos(s.spinnerAngle),sin=Math.sin(s.spinnerAngle);ctx.strokeStyle=c;ctx.lineWidth=fl?3:2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(SPINNER.x-SPINNER.len*cos,SPINNER.y-SPINNER.len*sin);ctx.lineTo(SPINNER.x+SPINNER.len*cos,SPINNER.y+SPINNER.len*sin);ctx.stroke();ctx.globalAlpha=0.4;ctx.beginPath();ctx.moveTo(SPINNER.x-SPINNER.len*sin,SPINNER.y+SPINNER.len*cos);ctx.lineTo(SPINNER.x+SPINNER.len*sin,SPINNER.y-SPINNER.len*cos);ctx.stroke();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(SPINNER.x,SPINNER.y,3,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();ng();ctx.fillStyle=c;ctx.font='bold 7px "Courier New",monospace';ctx.textAlign='center';ctx.fillText('SPIN',SPINNER.x,SPINNER.y+14);}
@@ -846,9 +852,70 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
       s.balls.forEach((b:any)=>drawBall(b,s.ballFlash));
       if(s.inLane)drawBall({x:362,y:s.laneY},0);
 
-      // ── PLUNGER ───────────────────────────────────────────────────────────
-      if(s.inLane){const springTop=614+s.plunger*52;for(let cy=springTop;cy<698;cy+=7){const cg=ctx.createLinearGradient(355,cy,370,cy);cg.addColorStop(0,'#3a2808');cg.addColorStop(0.5,'#6a4a18');cg.addColorStop(1,'#3a2808');ctx.strokeStyle=cg;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(362,cy+3,6,2,0,0,Math.PI*2);ctx.stroke();}const hue=(1-s.plunger)*50+20;ctx.fillStyle=s.charging?`hsl(${hue},100%,55%)`:'#5a3800';gl(ctx.fillStyle,s.charging?16:4);ctx.beginPath();ctx.roundRect(352,springTop-10,20,11,4);ctx.fill();ng();if(s.charging&&s.plunger>0){const bw=(LANE_X-WALL_L-10)*s.plunger;ctx.fillStyle='rgba(10,5,0,0.8)';ctx.fillRect(WALL_L+5,H-20,LANE_X-WALL_L-10,10);const pg2=ctx.createLinearGradient(WALL_L+5,0,WALL_L+5+bw,0);pg2.addColorStop(0,`hsl(${hue},100%,40%)`);pg2.addColorStop(1,`hsl(${hue},100%,65%)`);gl(`hsl(${hue},100%,55%)`,10);ctx.fillStyle=pg2;ctx.fillRect(WALL_L+5,H-20,bw,10);ng();ctx.strokeStyle='rgba(200,144,10,0.3)';ctx.lineWidth=1;ctx.strokeRect(WALL_L+5,H-20,LANE_X-WALL_L-10,10);}
-        if(s.skillShotActive){const pulse=0.6+0.4*Math.abs(Math.sin(s.tick*0.2));const target=['LEFT ORBIT','RIGHT ORBIT','SWAMP'][s.skillShotTarget];ctx.globalAlpha=pulse;gl('#ffff00',10);ctx.fillStyle='#ffff00';ctx.font='bold 9px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(`★ SKILL SHOT: ${target}`,200,H-6);ng();ctx.globalAlpha=1;}}
+      // ── PLUNGER with skill shot zone meter ──────────────────────────────────
+      if(s.inLane){
+        // Spring coils
+        const springTop=614+s.plunger*52;
+        for(let cy=springTop;cy<698;cy+=7){
+          const cg=ctx.createLinearGradient(355,cy,370,cy);cg.addColorStop(0,'#3a2808');cg.addColorStop(0.5,'#6a4a18');cg.addColorStop(1,'#3a2808');
+          ctx.strokeStyle=cg;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(362,cy+3,6,2,0,0,Math.PI*2);ctx.stroke();
+        }
+        // Plunger tip
+        const hue=(1-s.plunger)*50+20;
+        ctx.fillStyle=s.charging?`hsl(${hue},100%,55%)`:'#5a3800';
+        gl(ctx.fillStyle,s.charging?16:4);ctx.beginPath();ctx.roundRect(352,springTop-10,20,11,4);ctx.fill();ng();
+
+        // ── POWER METER with skill shot zones (left side of lane) ──────────
+        const meterX=WALL_L+5,meterY=H-110,meterW=14,meterH=90;
+        // Background
+        ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(meterX-2,meterY-2,meterW+4,meterH+4);
+        ctx.strokeStyle='#442200';ctx.lineWidth=1;ctx.strokeRect(meterX-2,meterY-2,meterW+4,meterH+4);
+        // Zone bands (bottom=soft, top=full)
+        const zones=[
+          {min:0,   max:0.28,col:'rgba(50,50,50,0.6)',  label:'SOFT'},
+          {min:0.28,max:0.56,col:SKILL_ZONES[0].color+'99',label:'ORBIT'},
+          {min:0.56,max:0.82,col:SKILL_ZONES[1].color+'99',label:'LANES'},
+          {min:0.82,max:1.0, col:SKILL_ZONES[2].color+'99',label:'RAMP'},
+        ];
+        zones.forEach(z=>{
+          const yBot=meterY+meterH-(z.max*meterH);const yTop=meterY+meterH-(z.min*meterH)-((z.max-z.min)*meterH);
+          const zh=(z.max-z.min)*meterH;
+          ctx.fillStyle=z.col;ctx.fillRect(meterX,meterY+meterH-z.max*meterH,meterW,zh);
+        });
+        // Skill shot zone highlight (brighter, pulsing)
+        if(s.skillShotActive){
+          const sz=SKILL_ZONES[s.skillShotTarget];
+          const szPulse=0.5+0.5*Math.abs(Math.sin(s.tick*0.18));
+          const szY=meterY+meterH-sz.max*meterH;const szH=(sz.max-sz.min)*meterH;
+          gl(sz.color,Math.round(12*szPulse));
+          ctx.fillStyle=sz.color+(szPulse>0.7?'cc':'88');ctx.fillRect(meterX,szY,meterW,szH);
+          ctx.strokeStyle=sz.color;ctx.lineWidth=2;ctx.strokeRect(meterX,szY,meterW,szH);ng();
+          // Arrow pointing at zone
+          ctx.fillStyle=sz.color;ctx.font='bold 7px "Courier New",monospace';ctx.textAlign='left';
+          ctx.fillText('◀ '+sz.name,meterX+meterW+3,szY+szH/2+3);
+        }
+        // Current power indicator line
+        if(s.charging&&s.plunger>0){
+          const indY=meterY+meterH-s.plunger*meterH;
+          ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillRect(meterX-4,indY-2,meterW+8,4);
+          gl('white',8);ctx.strokeStyle='white';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(meterX-4,indY);ctx.lineTo(meterX+meterW+4,indY);ctx.stroke();ng();
+        }
+        // Zone label at bottom
+        ctx.fillStyle='rgba(200,144,10,0.7)';ctx.font='bold 6px "Courier New",monospace';ctx.textAlign='center';
+        ctx.fillText('POWER',meterX+meterW/2,meterY+meterH+9);
+
+        // Skill shot instruction below plunger
+        if(s.skillShotActive){
+          const sz=SKILL_ZONES[s.skillShotTarget];
+          const pulse=0.6+0.4*Math.abs(Math.sin(s.tick*0.2));
+          ctx.globalAlpha=pulse;gl(sz.color,10);ctx.fillStyle=sz.color;
+          ctx.font='bold 9px "Courier New",monospace';ctx.textAlign='center';
+          ctx.fillText(`★ AIM FOR ${sz.name.toUpperCase()} ZONE`,200,H-6);ng();ctx.globalAlpha=1;
+        } else if(s.charging){
+          ctx.fillStyle='rgba(200,144,10,0.6)';ctx.font='bold 9px "Courier New",monospace';ctx.textAlign='center';
+          ctx.fillText('▼ HOLD SPACE · RELEASE TO LAUNCH ▼',200,H-6);
+        }
+      }
 
       // ── FLOATS ────────────────────────────────────────────────────────────
       s.floats.forEach((f:any)=>{ctx.globalAlpha=Math.min(1,f.t/25);gl(f.color,10);ctx.fillStyle=f.color;ctx.font='bold 13px "Times New Roman",serif';ctx.textAlign='center';ctx.fillText(f.text,f.x,f.y);ng();ctx.globalAlpha=1;});
@@ -947,7 +1014,10 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
     function loop(){update();draw();animRef.current=requestAnimationFrame(loop);}
 
     function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
-    function onKeyUp(e:KeyboardEvent){const s=sRef.current;if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=false;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=false;if((e.key===' '||e.key==='ArrowDown')&&s.inLane&&s.charging){e.preventDefault();sfx('launch',s.plunger);s.balls.push({x:362,y:s.laneY,vx:-0.3,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
+    function onKeyUp(e:KeyboardEvent){const s=sRef.current;if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=false;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=false;if((e.key===' '||e.key==='ArrowDown')&&s.inLane&&s.charging){e.preventDefault();sfx('launch',s.plunger);
+        let kvx=-0.3;if(s.plunger<0.28){kvx=-2.2;}else if(s.plunger<0.56){kvx=-1.6;}else if(s.plunger<0.82){kvx=-0.8;}else{kvx=-0.2;}
+        if(s.skillShotActive){const sz=SKILL_ZONES[s.skillShotTarget];if(s.plunger>=sz.min&&s.plunger<=sz.max){setTimeout(()=>{if(sRef.current){const sc=sRef.current;sc.score+=2500;sfx('skillShot');vibe([20,20,20,60]);addFloat(200,200,'SKILL SHOT! +2500','#ffff00');sc.skillShotActive=false;}},300);}}
+        s.balls.push({x:362,y:s.laneY,vx:kvx,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
     function onTouchStart(e:TouchEvent){
       e.preventDefault();
       // iOS audio unlock: must resume AND play silent buffer inside touch handler
@@ -960,7 +1030,14 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
         }
       }
       const s=sRef.current;ensureMusic();if(s.gameOver){sRef.current=mkState();return;}const rect=canvas.getBoundingClientRect();Array.from(e.touches).forEach((t:Touch)=>{if(t.clientX-rect.left<rect.width/2)s.leftUp=true;else s.rightUp=true;});if(s.inLane)s.charging=true;}
-    function onTouchEnd(e:TouchEvent){e.preventDefault();const s=sRef.current;const rect=canvas.getBoundingClientRect();const ts=Array.from(e.touches);if(!ts.some((t:any)=>t.clientX-rect.left<rect.width/2))s.leftUp=false;if(!ts.some((t:any)=>t.clientX-rect.left>=rect.width/2))s.rightUp=false;if(ts.length===0&&s.inLane&&s.charging){sfx('launch',s.plunger);s.balls.push({x:362,y:s.laneY,vx:-0.3,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
+    function onTouchEnd(e:TouchEvent){e.preventDefault();const s=sRef.current;const rect=canvas.getBoundingClientRect();const ts=Array.from(e.touches);if(!ts.some((t:any)=>t.clientX-rect.left<rect.width/2))s.leftUp=false;if(!ts.some((t:any)=>t.clientX-rect.left>=rect.width/2))s.rightUp=false;if(ts.length===0&&s.inLane&&s.charging){
+      sfx('launch',s.plunger);
+      let tvx=-0.3;
+      if(s.plunger<0.28){tvx=-2.2;}else if(s.plunger<0.56){tvx=-1.6;}else if(s.plunger<0.82){tvx=-0.8;}else{tvx=-0.2;}
+      if(s.skillShotActive){const sz=SKILL_ZONES[s.skillShotTarget];if(s.plunger>=sz.min&&s.plunger<=sz.max){setTimeout(()=>{if(sRef.current){const sc=sRef.current;sc.score+=2500;sfx('skillShot');vibe([20,20,20,60]);addFloat(200,200,'SKILL SHOT! +2500','#ffff00');sc.skillShotActive=false;}},300);}}
+      s.balls.push({x:362,y:s.laneY,vx:tvx,vy:-(s.plunger*19+5),fromLane:true});
+      s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;
+    }}
 
     window.addEventListener('keydown',onKeyDown);window.addEventListener('keyup',onKeyUp);
     canvas.addEventListener('touchstart',onTouchStart,{passive:false});canvas.addEventListener('touchend',onTouchEnd,{passive:false});canvas.addEventListener('touchcancel',onTouchEnd,{passive:false});
