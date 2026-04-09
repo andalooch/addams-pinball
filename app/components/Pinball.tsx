@@ -399,8 +399,11 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
             const bx=ball.x-bmp.x,by=ball.y-bmp.y,bd=Math.sqrt(bx*bx+by*by)||1;
             const bnx=bx/bd,bny=by/bd;
             ball.x=bmp.x+bnx*(minD+1);ball.y=bmp.y+bny*(minD+1);
-            {const sp=Math.max(Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy),8);ball.vx=bnx*sp*1.06;ball.vy=bny*sp*1.06;s.bumperFlash[i]=16;s.ballFlash=10;s.lightFrames=8;s.combo++;s.comboTimer=130;let mult=getMult(s,s.combo>=5?3:s.combo>=3?2:1);if(s.modeIdx===0)mult*=3;s.score+=bmp.pts*mult;sfx('bumper',s.combo);vibe(20);shake(5,3);s.insertPulse=20;addFloat(bmp.x,bmp.y-bmp.r-10,`+${bmp.pts*mult}`,mult>2?'#ffff00':'#ff8800');if(!s.kbCharged){s.kbHits++;if(s.kbHits>=KB_NEEDED){s.kbCharged=true;s.kbHits=0;sfx('kbRecharge');}}if(s.jackpotActive&&s.multiball){s.jackpotActive=false;s.jackpotFlash=50;s.score+=s.jackpotValue;sfx('bonus');vibe([20,20,20,20,40]);shake(15,6);addFloat(bmp.x,bmp.y-50,`JACKPOT! +${s.jackpotValue}`,'#ff44ff');s.jackpotValue=Math.round(s.jackpotValue*1.5);setTimeout(()=>{if(sRef.current&&sRef.current.multiball)sRef.current.jackpotActive=true;},4000);}break;}// end swept check loop
-        }});
+            const sp=Math.max(Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy),8);ball.vx=bnx*sp*1.06;ball.vy=bny*sp*1.06;s.bumperFlash[i]=16;s.ballFlash=10;s.lightFrames=8;s.combo++;s.comboTimer=130;let mult=getMult(s,s.combo>=5?3:s.combo>=3?2:1);if(s.modeIdx===0)mult*=3;s.score+=bmp.pts*mult;sfx('bumper',s.combo);vibe(20);shake(5,3);s.insertPulse=20;addFloat(bmp.x,bmp.y-bmp.r-10,`+${bmp.pts*mult}`,mult>2?'#ffff00':'#ff8800');if(!s.kbCharged){s.kbHits++;if(s.kbHits>=KB_NEEDED){s.kbCharged=true;s.kbHits=0;sfx('kbRecharge');}}if(s.jackpotActive&&s.multiball){s.jackpotActive=false;s.jackpotFlash=50;s.score+=s.jackpotValue;sfx('bonus');vibe([20,20,20,20,40]);shake(15,6);addFloat(bmp.x,bmp.y-50,`JACKPOT! +${s.jackpotValue}`,'#ff44ff');s.jackpotValue=Math.round(s.jackpotValue*1.5);setTimeout(()=>{if(sRef.current&&sRef.current.multiball)sRef.current.jackpotActive=true;},4000);}
+            break;
+          }
+        }
+      });
       // GOMEZ targets
       s.targets.forEach((tgt:any)=>{if(tgt.hit)return;const dx=ball.x-tgt.x,dy=ball.y-tgt.y;if(Math.sqrt(dx*dx+dy*dy)<BALL_R+tgt.r){tgt.hit=true;s.score+=getMult(s,tgt.pts);sfx('target');vibe(15);addFloat(tgt.x,tgt.y,`+${getMult(s,tgt.pts)}`,'#ffd700');if(s.targets.every((t:any)=>t.hit)){s.targets.forEach((t:any)=>t.hit=false);startMode(s,(s.modesCompleted)%MODES.length);s.score+=getMult(s,500);}}});
       // LOCK HOLES (vault)
