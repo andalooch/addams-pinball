@@ -96,27 +96,82 @@ const MODES=[
   {name:'LURCH',color:'#44ff88',desc:'Everything 5×',accent:'#00aa44'},
 ];
 
-const BPM=140,STEP=60/BPM/4,_=0;
-const BASS=[82.4,_,82.4,_,123.5,_,123.5,_,98,_,98,_,110,_,123.5,_,82.4,_,82.4,_,146.8,_,146.8,_,164.8,_,146.8,_,123.5,_,_,_];
-const LEAD=[_,329.6,_,293.7,_,246.9,_,196,_,329.6,_,392,246.9,_,_,_,_,293.7,_,246.9,_,196,_,164.8,_,220,_,261.6,246.9,_,_,_];
+// ── Gothic diminished theme (BPM=104, chromatic descending bass) ────────────
+const BPM=104,STEP=60/BPM/4,_=0;
+// Chromatic bass: E2→Eb2→D2→Db2→C2→B1→C2→E2 (descending ominous line)
+const BASS=[82.4,_,_,_,77.8,_,_,_,73.4,_,_,_,69.3,_,_,_,65.4,_,_,_,61.7,_,_,_,65.4,_,_,_,82.4,_,_,_];
+// Tritone/diminished lead: sparse, eerie
+const LEAD=[_,_,_,_,246.9,_,233.1,_,_,_,_,_,207.7,_,_,_,_,_,_,_,185,_,_,174.6,_,_,_,_,196,_,_,_];
+// Diminished 7th chord stabs on beats 1 & 3
 const CHORD_S=new Set([0,8,16,24]);
+// Gothic "snap" — clicks on the upbeats
 const SNAP=[_,_,_,1,_,_,_,1,_,_,_,1,_,_,_,1,_,_,_,1,_,_,_,1,_,_,_,1,_,_,_,1];
 function vibe(p:number|number[]){if(navigator?.vibrate)navigator.vibrate(p as any);}
 
 function buildAudio(){
-  const ac=new AudioContext();
-  const master=ac.createGain();master.gain.value=0.7;
+  // iOS: use webkitAudioContext fallback
+  const AC=(window as any).AudioContext||(window as any).webkitAudioContext;
+  const ac=new AC();
+  const master=ac.createGain();master.gain.value=0.72;
   const comp=ac.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=5;comp.connect(master);master.connect(ac.destination);
-  const mG=ac.createGain();mG.gain.value=0.40;mG.connect(comp);
+  const mG=ac.createGain();mG.gain.value=0.42;mG.connect(comp);
   const sG=ac.createGain();sG.gain.value=1.0;sG.connect(comp);
-  function osc(d:any,type:any,f:number,v:number,dur:number,fE?:number,t=ac.currentTime){const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(d);o.type=type;o.frequency.setValueAtTime(f,t);if(fE)o.frequency.exponentialRampToValueAtTime(fE,t+dur*0.85);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur);}
-  function nz(d:any,v:number,dur:number,fHz=800,Q=1,t=ac.currentTime){const len=Math.ceil(ac.sampleRate*dur),buf=ac.createBuffer(1,len,ac.sampleRate),da=buf.getChannelData(0);for(let i=0;i<len;i++)da[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=buf;f.type='bandpass';f.frequency.value=fHz;f.Q.value=Q;s.connect(f);f.connect(g);g.connect(d);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.start(t);s.stop(t+dur);}
-  function pB(f:number,t:number){osc(mG,'sine',f,0.55,STEP*3.5,f*0.95,t);osc(mG,'triangle',f*2,0.14,STEP*2,undefined,t);}
-  function pL(f:number,t:number){const o=ac.createOscillator(),lp=ac.createBiquadFilter(),g=ac.createGain();o.connect(lp);lp.connect(g);g.connect(mG);o.type='sawtooth';o.frequency.setValueAtTime(f,t);lp.type='lowpass';lp.frequency.value=1800;lp.Q.value=3;g.gain.setValueAtTime(0.2,t);g.gain.setTargetAtTime(0.0001,t+STEP*0.1,STEP*0.6);o.start(t);o.stop(t+STEP*1.5);osc(mG,'sine',f*2,0.04,STEP*1.2,undefined,t);}
-  function pC(t:number){[[82.4*2,0.18],[196,0.14],[246.9,0.13],[329.6,0.1]].forEach(([f,v])=>osc(mG,'sine',f,v,STEP*4,f*0.99,t));}
-  function pSn(t:number){nz(mG,0.18,0.03,2200,0.4,t);nz(mG,0.07,0.02,800,0.3,t);}
+
+  // Unlock iOS audio — play a silent buffer immediately
+  function iosUnlock(){
+    try{const buf=ac.createBuffer(1,1,ac.sampleRate);const src=ac.createBufferSource();src.buffer=buf;src.connect(ac.destination);src.start(0);}catch(e){}
+  }
+  iosUnlock();
+
+  function osc(d:any,type:any,f:number,v:number,dur:number,fE?:number,t=ac.currentTime){
+    if(ac.state==='suspended')ac.resume();
+    const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(d);o.type=type;o.frequency.setValueAtTime(f,t);if(fE)o.frequency.exponentialRampToValueAtTime(fE,t+dur*0.85);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.02);
+  }
+  function nz(d:any,v:number,dur:number,fHz=800,Q=1,t=ac.currentTime){
+    if(ac.state==='suspended')ac.resume();
+    const len=Math.ceil(ac.sampleRate*dur),buf=ac.createBuffer(1,len,ac.sampleRate),da=buf.getChannelData(0);for(let i=0;i<len;i++)da[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=buf;f.type='bandpass';f.frequency.value=fHz;f.Q.value=Q;s.connect(f);f.connect(g);g.connect(d);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.start(t);s.stop(t+dur+0.02);
+  }
+
+  // ── Gothic instruments ────────────────────────────────────────────────────
+  // Bass: deep sine + sub-octave for rumble
+  function pB(f:number,t:number){
+    osc(mG,'sine',f,0.65,STEP*3.8,f*0.97,t);          // fundamental
+    osc(mG,'sine',f*0.5,0.25,STEP*3.5,undefined,t);   // sub-octave rumble
+    osc(mG,'triangle',f*2,0.08,STEP*1.5,undefined,t); // slight harmonic
+  }
+  // Lead: eerie organ-like (triangle + slow tremolo via gain curve)
+  function pL(f:number,t:number){
+    const o=ac.createOscillator(),lfo=ac.createOscillator(),lfoG=ac.createGain(),g=ac.createGain();
+    o.connect(g);lfo.connect(lfoG);lfoG.connect(g.gain);g.connect(mG);
+    o.type='triangle';o.frequency.setValueAtTime(f,t);
+    lfo.type='sine';lfo.frequency.value=5.5; // tremolo rate Hz
+    lfoG.gain.value=0.06; // tremolo depth
+    g.gain.setValueAtTime(0.22,t);g.gain.setTargetAtTime(0.0001,t+STEP*1.2,STEP*0.8);
+    o.start(t);lfo.start(t);o.stop(t+STEP*2.5);lfo.stop(t+STEP*2.5);
+    // harmonics for organ-like quality
+    osc(mG,'sine',f*2,0.05,STEP*2,undefined,t);
+    osc(mG,'sine',f*3,0.025,STEP*1.5,undefined,t);
+  }
+  // Chord: stacked diminished 7th intervals (eerie cluster)
+  function pC(t:number){
+    // Diminished 7th built on E: E-G-Bb-Db
+    [[82.4*2,0.12],[98.0,0.10],[116.5,0.09],[69.3*2,0.08]].forEach(([f,v])=>{
+      osc(mG,'sine',f,v,STEP*5.5,f*0.998,t);
+    });
+    // Slight growl/tremor via sawtooth sub
+    osc(mG,'sawtooth',41.2,0.03,STEP*4,undefined,t);
+  }
+  // Snap/click: dry sharp transient like a crypt door
+  function pSn(t:number){
+    nz(mG,0.22,0.025,3500,0.3,t);  // high click
+    nz(mG,0.08,0.04,800,0.8,t);    // body
+  }
+
   let ss=0,nt=0,st:any=null,ip=false;
-  function sched(){while(nt<ac.currentTime+0.12){const s=ss%BASS.length;if(BASS[s])pB(BASS[s],nt);if(LEAD[s])pL(LEAD[s],nt);if(CHORD_S.has(s))pC(nt);if(SNAP[s])pSn(nt);ss++;nt+=STEP;}st=setTimeout(sched,40);}
+  function sched(){
+    if(ac.state==='suspended'){ac.resume();}
+    while(nt<ac.currentTime+0.14){const s=ss%BASS.length;if(BASS[s])pB(BASS[s],nt);if(LEAD[s])pL(LEAD[s],nt);if(CHORD_S.has(s))pC(nt);if(SNAP[s])pSn(nt);ss++;nt+=STEP;}st=setTimeout(sched,40);
+  }
   const sfx={
     bumper(c:number){const b=c>=5?1.5:c>=3?1.25:1;osc(sG,'square',500*b,0.35,0.12,200*b);nz(sG,0.15,0.06,700,2);},
     sling(){osc(sG,'sawtooth',340,0.3,0.09,85);nz(sG,0.2,0.06,1300,0.8);},
@@ -223,7 +278,16 @@ export default function AdamsPinball(){
   const [muted,setMuted]=useState(false);
   const [musicOn,setMusicOn]=useState(true);
 
-  function getAudio(){if(muteRef.current)return null;if(!audioRef.current){try{audioRef.current=buildAudio();}catch{return null;}}const a=audioRef.current;if(a.ac.state==='suspended')a.ac.resume();return a;}
+  function getAudio(){
+    if(muteRef.current)return null;
+    if(!audioRef.current){try{audioRef.current=buildAudio();}catch(e){console.warn('Audio init failed',e);return null;}}
+    const a=audioRef.current;
+    // iOS: resume on every call — it's a no-op if already running
+    if(a.ac.state!=='running'){
+      a.ac.resume().catch(()=>{});
+    }
+    return a;
+  }
   function sfx(name:string,...args:any[]){const a=getAudio();if(a&&a[name])a[name](...args);}
   function ensureMusic(){const a=getAudio();if(a&&!a.isPlaying&&!muteRef.current)a.startMusic();}
 
@@ -658,7 +722,18 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
 
     function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
     function onKeyUp(e:KeyboardEvent){const s=sRef.current;if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=false;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=false;if((e.key===' '||e.key==='ArrowDown')&&s.inLane&&s.charging){e.preventDefault();sfx('launch',s.plunger);s.balls.push({x:362,y:s.laneY,vx:-0.3,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
-    function onTouchStart(e:TouchEvent){e.preventDefault();const s=sRef.current;ensureMusic();if(s.gameOver){sRef.current=mkState();return;}const rect=canvas.getBoundingClientRect();Array.from(e.touches).forEach((t:Touch)=>{if(t.clientX-rect.left<rect.width/2)s.leftUp=true;else s.rightUp=true;});if(s.inLane)s.charging=true;}
+    function onTouchStart(e:TouchEvent){
+      e.preventDefault();
+      // iOS audio unlock: must resume AND play silent buffer inside touch handler
+      if(audioRef.current){
+        const ac=audioRef.current.ac;
+        if(ac.state!=='running'){
+          ac.resume().then(()=>{
+            try{const b=ac.createBuffer(1,1,ac.sampleRate);const s2=ac.createBufferSource();s2.buffer=b;s2.connect(ac.destination);s2.start(0);}catch(er){}
+          }).catch(()=>{});
+        }
+      }
+      const s=sRef.current;ensureMusic();if(s.gameOver){sRef.current=mkState();return;}const rect=canvas.getBoundingClientRect();Array.from(e.touches).forEach((t:Touch)=>{if(t.clientX-rect.left<rect.width/2)s.leftUp=true;else s.rightUp=true;});if(s.inLane)s.charging=true;}
     function onTouchEnd(e:TouchEvent){e.preventDefault();const s=sRef.current;const rect=canvas.getBoundingClientRect();const ts=Array.from(e.touches);if(!ts.some((t:any)=>t.clientX-rect.left<rect.width/2))s.leftUp=false;if(!ts.some((t:any)=>t.clientX-rect.left>=rect.width/2))s.rightUp=false;if(ts.length===0&&s.inLane&&s.charging){sfx('launch',s.plunger);s.balls.push({x:362,y:s.laneY,vx:-0.3,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
 
     window.addEventListener('keydown',onKeyDown);window.addEventListener('keyup',onKeyUp);
