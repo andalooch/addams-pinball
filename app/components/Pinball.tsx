@@ -170,9 +170,9 @@ let _sharedAC:AudioContext|null=null;
 function getSharedAC():AudioContext{
   if(!_sharedAC){
     const AC=(window as any).AudioContext||(window as any).webkitAudioContext;
-    _sharedAC=new AC();
+    _sharedAC=new AC() as AudioContext;
   }
-  return _sharedAC;
+  return _sharedAC!;
 }
 function resumeAC(){
   if(!_sharedAC)return;
