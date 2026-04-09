@@ -196,18 +196,11 @@ function buildAudio(){
     osc(mG,'sine',f*0.5,0.25,STEP*3.5,undefined,t);   // sub-octave rumble
     osc(mG,'triangle',f*2,0.08,STEP*1.5,undefined,t); // slight harmonic
   }
-  // Lead: eerie organ-like (triangle + slow tremolo via gain curve)
+  // Lead: eerie organ-like triangle (simplified for iOS compatibility)
   function pL(f:number,t:number){
-    const o=ac.createOscillator(),lfo=ac.createOscillator(),lfoG=ac.createGain(),g=ac.createGain();
-    o.connect(g);lfo.connect(lfoG);lfoG.connect(g.gain);g.connect(mG);
-    o.type='triangle';o.frequency.setValueAtTime(f,t);
-    lfo.type='sine';lfo.frequency.value=5.5; // tremolo rate Hz
-    lfoG.gain.value=0.06; // tremolo depth
-    g.gain.setValueAtTime(0.22,t);g.gain.setTargetAtTime(0.0001,t+STEP*1.2,STEP*0.8);
-    o.start(t);lfo.start(t);o.stop(t+STEP*2.5);lfo.stop(t+STEP*2.5);
-    // harmonics for organ-like quality
-    osc(mG,'sine',f*2,0.05,STEP*2,undefined,t);
-    osc(mG,'sine',f*3,0.025,STEP*1.5,undefined,t);
+    osc(mG,'triangle',f,0.20,STEP*2.4,f*0.99,t);
+    osc(mG,'sine',f*2,0.06,STEP*1.8,undefined,t);
+    osc(mG,'sine',f*3,0.025,STEP*1.2,undefined,t);
   }
   // Chord: stacked diminished 7th intervals (eerie cluster)
   function pC(t:number){
@@ -376,15 +369,43 @@ export default function AdamsPinball(){
   const bdRef=useRef<HTMLCanvasElement|null>(null);
   const [muted,setMuted]=useState(false);
   const [musicOn,setMusicOn]=useState(true);
+  const [audioUnlocked,setAudioUnlocked]=useState(false);
+  const [showAudioPrompt,setShowAudioPrompt]=useState(true);
+  const [showInitials,setShowInitials]=useState(false);
+  const [initials,setInitials]=useState('');
+  const [leaderboard,setLeaderboard]=useState<{name:string,score:number}[]>([]);
+
+  const loadLB=useCallback(()=>{try{return JSON.parse(localStorage.getItem('addams_lb')||'[]');}catch{return [];}},[] );
+  const saveLB=useCallback((lb:{name:string,score:number}[])=>{try{localStorage.setItem('addams_lb',JSON.stringify(lb));}catch{}},[] );
+  const qualifies=useCallback((score:number)=>{const lb=loadLB();return score>0&&(lb.length<10||score>lb[lb.length-1]?.score);},[loadLB]);
+  const submitScore=useCallback((name:string,score:number)=>{
+    const lb=loadLB();lb.push({name:name.toUpperCase().slice(0,3)||'???',score});
+    lb.sort((a:any,b:any)=>b.score-a.score);const top=lb.slice(0,10);saveLB(top);setLeaderboard(top);setShowInitials(false);
+  },[loadLB,saveLB]);
+
+  useEffect(()=>{setLeaderboard(loadLB());},[loadLB]);
+
+  const unlockAudio=useCallback(()=>{
+    if(muteRef.current)return;
+    try{
+      if(!audioRef.current){audioRef.current=buildAudio();}
+      const a=audioRef.current;
+      const ac=a.ac;
+      // Play a 0-volume tone — the most reliable iOS unlock trigger
+      const g=ac.createGain();g.gain.value=0.001;g.connect(ac.destination);
+      const o=ac.createOscillator();o.connect(g);o.start(0);o.stop(0.01);
+      ac.resume().then(()=>{
+        setAudioUnlocked(true);setShowAudioPrompt(false);
+        if(!a.isPlaying)a.startMusic();
+      }).catch(()=>{});
+    }catch(e){console.warn('Audio unlock failed',e);}
+  },[]);
 
   function getAudio(){
     if(muteRef.current)return null;
-    if(!audioRef.current){try{audioRef.current=buildAudio();}catch(e){console.warn('Audio init failed',e);return null;}}
+    if(!audioRef.current){try{audioRef.current=buildAudio();}catch(e){return null;}}
     const a=audioRef.current;
-    // iOS: resume on every call — it's a no-op if already running
-    if(a.ac.state!=='running'){
-      a.ac.resume().catch(()=>{});
-    }
+    if(a.ac.state!=='running')a.ac.resume().catch(()=>{});
     return a;
   }
   function sfx(name:string,...args:any[]){const a=getAudio();if(a&&typeof a[name]==='function')a[name](...args);}
@@ -627,7 +648,7 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
         if(s.bonusValue<=0&&s.bonusTick>40){
           s.bonusActive=false;s.bonusTick=0;s.bumperHits=0;s.rampCount=0;s.topLaneMult=1;
           s.lives--;
-          if(s.lives<=0){s.gameOver=true;s.highScore=Math.max(s.highScore,s.score);sfx('gameover');vibe([80,40,80,40,300]);}
+          if(s.lives<=0){s.gameOver=true;s.highScore=Math.max(s.highScore,s.score);sfx('gameover');vibe([80,40,80,40,300]);if(qualifies(s.score)){setTimeout(()=>setShowInitials(true),1800);}}
           else{spawnLaneBall();}
         }
         return; // freeze gameplay during bonus
@@ -1176,7 +1197,7 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
         s.balls.push({x:362,y:s.laneY,vx:kvx,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
     function onTouchStart(e:TouchEvent){
       e.preventDefault();
-      // iOS audio unlock: must resume AND play silent buffer inside touch handler
+      unlockAudio(); // always try to unlock on every touch
       if(audioRef.current){
         const ac=audioRef.current.ac;
         if(ac.state!=='running'){
@@ -1205,41 +1226,81 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
   function toggleMusic(){const a=audioRef.current;if(!a)return;if(a.isPlaying){a.stopMusic();setMusicOn(false);}else{a.startMusic();setMusicOn(true);}}
   const btn:React.CSSProperties={background:'none',border:'1px solid #5a3a00',borderRadius:4,color:'#c8900a',cursor:'pointer',fontSize:14,padding:'2px 8px',lineHeight:'1',fontFamily:'"Courier New",monospace'};
 
-  // Rock-solid viewport sizing for iOS — JS measured, not CSS dvh
   const [viewport,setViewport]=useState({w:0,h:0});
   useEffect(()=>{
-    function measure(){
-      // Use visualViewport on iOS (accounts for keyboard, browser chrome)
-      const vv=(window as any).visualViewport;
-      const w=vv?vv.width:window.innerWidth;
-      const h=vv?vv.height:window.innerHeight;
-      setViewport({w,h});
-    }
-    measure();
-    window.addEventListener('resize',measure);
+    function measure(){const vv=(window as any).visualViewport;setViewport({w:vv?vv.width:window.innerWidth,h:vv?vv.height:window.innerHeight});}
+    measure();window.addEventListener('resize',measure);
     const vv=(window as any).visualViewport;
     if(vv){vv.addEventListener('resize',measure);vv.addEventListener('scroll',measure);}
-    return()=>{
-      window.removeEventListener('resize',measure);
-      if(vv){vv.removeEventListener('resize',measure);vv.removeEventListener('scroll',measure);}
-    };
+    return()=>{window.removeEventListener('resize',measure);if(vv){vv.removeEventListener('resize',measure);vv.removeEventListener('scroll',measure);}};
   },[]);
 
-  const scale=viewport.w>0?Math.min(viewport.w/W,viewport.h/H):1;
-  const cw=Math.round(W*scale);
-  const ch=Math.round(H*scale);
+  const isMobile=viewport.w>0&&viewport.w<600;
+  const scale=viewport.w>0?Math.min(viewport.w/(isMobile?W:W+80),(isMobile?viewport.h:viewport.h-80)/H):1;
+  const cw=Math.round(W*scale),ch=Math.round(H*scale);
+
+  const cabinetBtn:React.CSSProperties={background:'none',border:'1px solid #5a3a00',borderRadius:4,color:'#c8900a',cursor:'pointer',fontSize:13,padding:'3px 10px',fontFamily:'"Courier New",monospace',letterSpacing:1};
 
   return(
-    <div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'#000408',overflow:'hidden',userSelect:'none'}}>
-      <canvas ref={canvasRef} width={W} height={H}
-        style={{display:'block',touchAction:'none',
-          width:cw||'auto',height:ch||'auto',
-          border:'2px solid #c8900a',
-          boxShadow:'0 0 50px rgba(100,30,200,0.5),0 0 100px rgba(200,144,10,0.2)'}}/>
-      <div style={{position:'absolute',top:8,right:8,zIndex:10,display:'flex',gap:6}}>
-        <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
-        <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
+    <div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'radial-gradient(ellipse at 50% 40%, #1a0a00 0%, #0a0400 60%, #000 100%)',overflow:'hidden',userSelect:'none'}}>
+      {/* Cabinet wrapper */}
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0}}>
+        {/* Top bezel — backglass panel */}
+        {!isMobile&&<div style={{width:cw+24,background:'linear-gradient(180deg,#1a1008 0%,#0d0804 100%)',border:'1px solid #3a2008',borderBottom:'none',borderRadius:'8px 8px 0 0',padding:'8px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',boxShadow:'0 -4px 20px rgba(200,144,10,0.15)'}}>
+          <div style={{color:'#c8900a',fontFamily:'"Times New Roman",serif',fontSize:14,letterSpacing:4,textShadow:'0 0 10px #c8900a88'}}>⚰ ADDAMS MANSION PINBALL ⚰</div>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={toggleMute} style={cabinetBtn}>{muted?'🔇':'🔊'}</button>
+            <button onClick={toggleMusic} style={cabinetBtn}>{musicOn?'⏸':'▶'}</button>
+          </div>
+        </div>}
+        {/* Side rails + canvas */}
+        <div style={{display:'flex',alignItems:'stretch',gap:0}}>
+          {!isMobile&&<div style={{width:12,background:'linear-gradient(90deg,#2a1808,#1a0f04,#2a1808)',border:'1px solid #3a2008',borderRight:'none'}}/>}
+          <div style={{position:'relative'}}>
+            <canvas ref={canvasRef} width={W} height={H} style={{display:'block',touchAction:'none',width:cw,height:ch,border:isMobile?'2px solid #c8900a':'none',boxShadow:'0 0 60px rgba(124,34,204,0.4),0 0 120px rgba(200,144,10,0.15)'}}/>
+            {/* Mobile audio/controls overlay */}
+            {isMobile&&<div style={{position:'absolute',top:6,right:6,display:'flex',gap:5,zIndex:10}}>
+              <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
+              <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
+            </div>}
+            {/* Audio unlock prompt — shows until user taps */}
+            {showAudioPrompt&&!audioUnlocked&&<div onClick={unlockAudio} style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',paddingBottom:40,background:'transparent',cursor:'pointer',zIndex:20}}>
+              <div style={{background:'rgba(0,0,0,0.82)',border:'1px solid #c8900a',borderRadius:8,padding:'10px 20px',textAlign:'center',animation:'pulse 1.5s ease-in-out infinite'}}>
+                <div style={{color:'#c8900a',fontSize:16,fontFamily:'"Courier New",monospace',letterSpacing:2}}>🔊 TAP TO ENABLE SOUND</div>
+                <div style={{color:'rgba(200,144,10,0.6)',fontSize:10,marginTop:4,fontFamily:'"Courier New",monospace'}}>iOS requires a tap to unlock audio</div>
+              </div>
+            </div>}
+            {/* Initials entry overlay */}
+            {showInitials&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.88)',zIndex:30}}>
+              <div style={{background:'#0a0010',border:'2px solid #c8900a',borderRadius:10,padding:'28px 32px',textAlign:'center',minWidth:260}}>
+                <div style={{color:'#c8900a',fontSize:18,fontFamily:'"Times New Roman",serif',marginBottom:4}}>✦ HIGH SCORE ✦</div>
+                <div style={{color:'#ffd700',fontSize:28,fontFamily:'"Courier New",monospace',marginBottom:16,letterSpacing:4}}>{sRef.current?.score?.toLocaleString()}</div>
+                <div style={{color:'rgba(200,144,10,0.8)',fontSize:11,fontFamily:'"Courier New",monospace',marginBottom:10,letterSpacing:2}}>ENTER YOUR INITIALS</div>
+                <input maxLength={3} value={initials} onChange={e=>setInitials(e.target.value.toUpperCase())}
+                  style={{background:'#000',border:'2px solid #c8900a',borderRadius:4,color:'#ffd700',fontSize:28,fontFamily:'"Courier New",monospace',textAlign:'center',width:100,letterSpacing:8,padding:'6px 8px',outline:'none'}}
+                  autoFocus placeholder="AAA"/>
+                <div style={{display:'flex',gap:10,marginTop:16,justifyContent:'center'}}>
+                  <button onClick={()=>{submitScore(initials||'???',sRef.current?.score||0);}} style={{...cabinetBtn,background:'#c8900a22',padding:'8px 20px',fontSize:13}}>SUBMIT</button>
+                  <button onClick={()=>setShowInitials(false)} style={{...cabinetBtn,padding:'8px 16px',fontSize:13}}>SKIP</button>
+                </div>
+                {/* Mini leaderboard */}
+                {leaderboard.length>0&&<div style={{marginTop:18,borderTop:'1px solid #3a2008',paddingTop:12}}>
+                  <div style={{color:'rgba(200,144,10,0.6)',fontSize:9,fontFamily:'"Courier New",monospace',letterSpacing:2,marginBottom:6}}>TOP SCORES</div>
+                  {leaderboard.slice(0,5).map((e,i)=>(
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',color:i===0?'#ffd700':'rgba(200,144,10,0.7)',fontFamily:'"Courier New",monospace',fontSize:11,padding:'1px 0'}}>
+                      <span>{i+1}. {e.name}</span><span>{e.score.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>}
+              </div>
+            </div>}
+          </div>
+          {!isMobile&&<div style={{width:12,background:'linear-gradient(90deg,#2a1808,#1a0f04,#2a1808)',border:'1px solid #3a2008',borderLeft:'none'}}/>}
+        </div>
+        {/* Bottom rail */}
+        {!isMobile&&<div style={{width:cw+24,height:14,background:'linear-gradient(180deg,#1a1008,#0d0804)',border:'1px solid #3a2008',borderTop:'none',borderRadius:'0 0 8px 8px',boxShadow:'0 4px 20px rgba(0,0,0,0.5)'}}/>}
       </div>
+      <style>{`@keyframes pulse{0%,100%{opacity:0.8}50%{opacity:1}}`}</style>
     </div>
   );
 }
