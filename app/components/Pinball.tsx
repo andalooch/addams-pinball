@@ -10,6 +10,9 @@ const MODE_DURATION=1800,SKILL_SHOT_FRAMES=300;
 type P=[number,number];
 function bez(p0:P,p1:P,p2:P,p3:P,t:number){const m=1-t;return{x:m*m*m*p0[0]+3*m*m*t*p1[0]+3*m*t*t*p2[0]+t*t*t*p3[0],y:m*m*m*p0[1]+3*m*m*t*p1[1]+3*m*t*t*p2[1]+t*t*t*p3[1]};}
 function drawBez(c:CanvasRenderingContext2D,p0:P,p1:P,p2:P,p3:P){c.beginPath();c.moveTo(p0[0],p0[1]);c.bezierCurveTo(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1]);c.stroke();}
+function fpEnd(f:any,a:number){return{x:f.px+Math.cos(a)*f.len,y:f.py+Math.sin(a)*f.len};}
+function closestOnSeg(ax:number,ay:number,bx:number,by:number,px:number,py:number){const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;if(!l2)return{x:ax,y:ay};const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2));return{x:ax+t*dx,y:ay+t*dy};}
+function reflectSeg(ball:any,ax:number,ay:number,bx:number,by:number,boost=1){const cp=closestOnSeg(ax,ay,bx,by,ball.x,ball.y);const dx=ball.x-cp.x,dy=ball.y-cp.y,dist=Math.sqrt(dx*dx+dy*dy),min=BALL_R+3;if(dist<min&&dist>0){const nx=dx/dist,ny=dy/dist;ball.x=cp.x+nx*(min+0.5);ball.y=cp.y+ny*(min+0.5);const dot=ball.vx*nx+ball.vy*ny;if(dot<0){ball.vx=(ball.vx-2*dot*nx)*boost;ball.vy=(ball.vy-2*dot*ny)*boost;}return true;}return false;}
 
 const FL={px:122,py:626,len:68,downA:0.50,upA:-0.46};
 const FR={px:278,py:626,len:68,downA:Math.PI-0.50,upA:Math.PI+0.46};
@@ -1122,20 +1125,6 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
     function loop(){update();draw();animRef.current=requestAnimationFrame(loop);}
 
     function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();resumeAC();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key==='ArrowLeft'&&e.shiftKey)doNudge('L');if(e.key==='ArrowRight'&&e.shiftKey)doNudge('R');if(e.key.toLowerCase()==='n')doNudge(Math.random()<0.5?'L':'R');if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
-    function onKeyUp(e:KeyboardEvent){const s=sRef.current;if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=false;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=false;if((e.key===' '||e.key==='ArrowDown')&&s.inLane&&s.charging){e.preventDefault();sfx('launch',s.plunger);
-        let kvx=-0.3;if(s.plunger<0.28){kvx=-2.2;}else if(s.plunger<0.56){kvx=-1.6;}else if(s.plunger<0.82){kvx=-0.8;}else{kvx=-0.2;}
-        if(s.skillShotActive){const sz=SKILL_ZONES[s.skillShotTarget];if(s.plunger>=sz.min&&s.plunger<=sz.max){setTimeout(()=>{if(sRef.current){const sc=sRef.current;sc.score+=2500;sfx('skillShot');vibe([20,20,20,60]);addFloat(200,200,'SKILL SHOT! +2500','#ffff00');sc.skillShotActive=false;}},300);}}
-        s.balls.push({x:362,y:s.laneY,vx:kvx,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
-    function doNudge(dir:'L'|'R'|'U'){
-      const s=sRef.current;if(s.gameOver||s.inLane||s.nudgeCooldown>0)return;
-      s.nudgeCooldown=120; // 2s cooldown
-      const force=dir==='L'?-8:dir==='R'?8:0;
-      s.balls.forEach((b:any)=>{if(b.onRamp)return;b.vx+=force+(Math.random()-0.5)*3;b.vy-=3+Math.random()*3;});
-      shake(14,8);sfx('nudge');vibe([30,20,30]);
-      // Counts toward tilt
-      s.rapidPresses+=3;s.rapidTimer=55;
-      addFloat(200,400,dir==='L'?'◀ NUDGE':dir==='R'?'NUDGE ▶':'NUDGE ▼','#cc8800');
-    }
 
     function onTouchStart(e:TouchEvent){
       e.preventDefault();
@@ -1164,6 +1153,17 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
     spawnLaneBall();animRef.current=requestAnimationFrame(loop);
     return()=>{clearInterval(batInt);cancelAnimationFrame(animRef.current!);audioRef.current?.stopMusic();window.removeEventListener('keydown',onKeyDown);window.removeEventListener('keyup',onKeyUp);canvas.removeEventListener('touchstart',onTouchStart);canvas.removeEventListener('touchend',onTouchEnd);canvas.removeEventListener('touchcancel',onTouchEnd);};
   },[mkState]);
+
+  function doNudge(dir:'L'|'R'){
+    const s=sRef.current;if(!s||s.gameOver||s.inLane||s.nudgeCooldown>0)return;
+    s.nudgeCooldown=120;
+    const force=dir==='L'?-8:8;
+    s.balls.forEach((b:any)=>{if(b.onRamp)return;b.vx+=force+(Math.random()-0.5)*3;b.vy-=3+Math.random()*3;});
+    if(s.shake)s.shake={x:0,y:0,frames:14,mag:8};
+    sfx('nudge');vibe([30,20,30]);
+    s.rapidPresses+=3;s.rapidTimer=55;
+    s.floats.push({x:200,y:400,text:dir==='L'?'◀ NUDGE':'NUDGE ▶',color:'#cc8800',t:70});
+  }
 
   function toggleMute(){muteRef.current=!muteRef.current;setMuted(muteRef.current);if(audioRef.current)audioRef.current.master.gain.setValueAtTime(muteRef.current?0:0.7,audioRef.current.ac.currentTime);if(muteRef.current)audioRef.current?.stopMusic();}
   function toggleMusic(){const a=audioRef.current;if(!a)return;if(a.isPlaying){a.stopMusic();setMusicOn(false);}else{a.startMusic();setMusicOn(true);}}
