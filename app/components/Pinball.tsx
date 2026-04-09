@@ -298,9 +298,11 @@ export default function AdamsPinball(){
     function tickBall(ball:any,s:any):boolean{
       if(ball.onRamp){ball.rampT+=RAMP_SPEED;const path=ball.onRamp==='left'?LRAMP_PATH:RRAMP_PATH;const pt=bez(path[0],path[1],path[2],path[3],Math.min(1,ball.rampT));ball.x=pt.x;ball.y=pt.y;if(ball.rampT>=1){const wasLeft=ball.onRamp==='left';ball.onRamp=null;ball.rampT=0;ball.vx=wasLeft?3.5:-3.5;ball.vy=0.8;}return false;}
       // Bear trap capture
-      if(s.bearTrap.captured&&s.bearTrap.capturedBall===ball){ball.x=BEAR_TRAP.x;ball.y=BEAR_TRAP.y;ball.vx=0;ball.vy=0;s.bearTrap.captureTimer--;if(s.bearTrap.captureTimer<=0){s.bearTrap.captured=false;s.bearTrap.capturedBall=null;s.bearTrap.cooldown=360;s.bearTrap.flash=40;s.bearTrap.jawOpen=true;let pts=s.modeIdx===3?BEAR_TRAP.pts*4:BEAR_TRAP.pts;s.score+=getMult(s,pts);sfx('bearTrap');vibe([30,15,30,15,50]);shake(12,5);addFloat(BEAR_TRAP.x,BEAR_TRAP.y-35,`TRAP! +${getMult(s,pts)}`,'#ff6600');const a=(Math.random()-0.5)*1.4-Math.PI/2;ball.vx=Math.cos(a)*12;ball.vy=Math.sin(a)*12;}return false;}
+      if(s.bearTrap.captured&&s.bearTrap.capturedBall===ball){ball.x=BEAR_TRAP.x;ball.y=BEAR_TRAP.y;ball.vx=0;ball.vy=0;s.bearTrap.captureTimer--;if(s.bearTrap.captureTimer<=0){s.bearTrap.captured=false;s.bearTrap.capturedBall=null;s.bearTrap.cooldown=360;s.bearTrap.flash=40;s.bearTrap.jawOpen=true;let pts=s.modeIdx===3?BEAR_TRAP.pts*4:BEAR_TRAP.pts;s.score+=getMult(s,pts);sfx('bearTrap');vibe([30,15,30,15,50]);shake(12,5);addFloat(BEAR_TRAP.x,BEAR_TRAP.y-35,`TRAP! +${getMult(s,pts)}`,'#ff6600');// Eject upper-left to avoid the bumper cluster (upper-right)
+const a=-Math.PI/2-(0.3+Math.random()*0.5);ball.vx=Math.cos(a)*8;ball.vy=Math.sin(a)*8;}return false;}
       // Swamp capture
-      if(s.swamp.captured&&s.swamp.capturedBall===ball){ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=0;ball.vy=0;s.swamp.captureTimer--;if(s.swamp.captureTimer<=0){s.swamp.captured=false;s.swamp.capturedBall=null;s.swamp.cooldown=300;s.swamp.flash=40;let pts=SWAMP.pts;s.score+=getMult(s,pts);sfx('swamp');vibe([20,20,20,40]);shake(8,4);addFloat(SWAMP.x+40,SWAMP.y-25,`SWAMP! +${getMult(s,pts)}`,'#44ff88');ball.vx=8;ball.vy=-11;ball.x=WALL_L+BALL_R+4;}return false;}
+      if(s.swamp.captured&&s.swamp.capturedBall===ball){ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=0;ball.vy=0;s.swamp.captureTimer--;if(s.swamp.captureTimer<=0){s.swamp.captured=false;s.swamp.capturedBall=null;s.swamp.cooldown=300;s.swamp.flash=40;let pts=SWAMP.pts;s.score+=getMult(s,pts);sfx('swamp');vibe([20,20,20,40]);shake(8,4);addFloat(SWAMP.x+40,SWAMP.y-25,`SWAMP! +${getMult(s,pts)}`,'#44ff88');// Eject rightward-upward from swamp position (not from wall)
+ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random()*2);}return false;}
       // Physics
       ball.vy+=GRAVITY;ball.x+=ball.vx;ball.y+=ball.vy;
       const spd=Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy);
@@ -319,8 +321,22 @@ export default function AdamsPinball(){
       s.topLanes.forEach((lane:any)=>{if(lane.flash>0){lane.flash--;return;}const dx=ball.x-lane.cx,dy=ball.y-lane.cy;if(Math.sqrt(dx*dx+dy*dy)<lane.r+BALL_R){if(!lane.lit){lane.lit=true;s.score+=lane.pts;sfx('topLane');addFloat(lane.cx,lane.cy,`+${lane.pts}`,'#ffd700');}lane.flash=20;if(s.topLanes.every((l:any)=>l.lit)){s.topLaneMult=Math.min(s.topLaneMult+1,6);s.topLanes.forEach((l:any)=>l.lit=false);s.topLaneCompletions++;s.score+=1000;sfx('topLaneAll');vibe([15,15,15,15,40]);addFloat(200,80,`${s.topLaneMult}× MULT! +1000`,'#ffff00');if(s.topLaneCompletions%3===0){s.extraBalls++;sfx('xball');addFloat(200,65,'EXTRA BALL!','#ffff00');shake(10,5);}}}});
       // Ramp
       checkRampEntry(ball,s);
-      // BUMPERS
-      BUMPERS.forEach((bmp,i)=>{const dx=ball.x-bmp.x,dy=ball.y-bmp.y,dist=Math.sqrt(dx*dx+dy*dy),minD=BALL_R+bmp.r;if(dist<minD&&dist>0){const nx=dx/dist,ny=dy/dist;ball.x=bmp.x+nx*(minD+1);ball.y=bmp.y+ny*(minD+1);const sp=Math.max(Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy),8);ball.vx=nx*sp*1.06;ball.vy=ny*sp*1.06;s.bumperFlash[i]=16;s.ballFlash=10;s.lightFrames=8;s.combo++;s.comboTimer=130;let mult=getMult(s,s.combo>=5?3:s.combo>=3?2:1);if(s.modeIdx===0)mult*=3;s.score+=bmp.pts*mult;sfx('bumper',s.combo);vibe(20);shake(5,3);s.insertPulse=20;addFloat(bmp.x,bmp.y-bmp.r-10,`+${bmp.pts*mult}`,mult>2?'#ffff00':'#ff8800');if(!s.kbCharged){s.kbHits++;if(s.kbHits>=KB_NEEDED){s.kbCharged=true;s.kbHits=0;sfx('kbRecharge');}}if(s.jackpotActive&&s.multiball){s.jackpotActive=false;s.jackpotFlash=50;s.score+=s.jackpotValue;sfx('bonus');vibe([20,20,20,20,40]);shake(15,6);addFloat(bmp.x,bmp.y-50,`JACKPOT! +${s.jackpotValue}`,'#ff44ff');s.jackpotValue=Math.round(s.jackpotValue*1.5);setTimeout(()=>{if(sRef.current&&sRef.current.multiball)sRef.current.jackpotActive=true;},4000);}}});
+      // BUMPERS — swept check to prevent tunneling at high speed
+      BUMPERS.forEach((bmp,i)=>{
+        // Test current pos AND mid-point of travel path
+        const checkPositions=[
+          {x:ball.x,y:ball.y},
+          {x:ball.x-ball.vx*0.5,y:ball.y-ball.vy*0.5},
+        ];
+        for(const cp of checkPositions){
+          const dx=cp.x-bmp.x,dy=cp.y-bmp.y,dist=Math.sqrt(dx*dx+dy*dy),minD=BALL_R+bmp.r;
+          if(dist<minD&&dist>0){
+            // Push ball out along the actual ball→bumper axis
+            const bx=ball.x-bmp.x,by=ball.y-bmp.y,bd=Math.sqrt(bx*bx+by*by)||1;
+            const bnx=bx/bd,bny=by/bd;
+            ball.x=bmp.x+bnx*(minD+1);ball.y=bmp.y+bny*(minD+1);
+            {const sp=Math.max(Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy),8);ball.vx=bnx*sp*1.06;ball.vy=bny*sp*1.06;s.bumperFlash[i]=16;s.ballFlash=10;s.lightFrames=8;s.combo++;s.comboTimer=130;let mult=getMult(s,s.combo>=5?3:s.combo>=3?2:1);if(s.modeIdx===0)mult*=3;s.score+=bmp.pts*mult;sfx('bumper',s.combo);vibe(20);shake(5,3);s.insertPulse=20;addFloat(bmp.x,bmp.y-bmp.r-10,`+${bmp.pts*mult}`,mult>2?'#ffff00':'#ff8800');if(!s.kbCharged){s.kbHits++;if(s.kbHits>=KB_NEEDED){s.kbCharged=true;s.kbHits=0;sfx('kbRecharge');}}if(s.jackpotActive&&s.multiball){s.jackpotActive=false;s.jackpotFlash=50;s.score+=s.jackpotValue;sfx('bonus');vibe([20,20,20,20,40]);shake(15,6);addFloat(bmp.x,bmp.y-50,`JACKPOT! +${s.jackpotValue}`,'#ff44ff');s.jackpotValue=Math.round(s.jackpotValue*1.5);setTimeout(()=>{if(sRef.current&&sRef.current.multiball)sRef.current.jackpotActive=true;},4000);}break;}// end swept check loop
+        }});
       // GOMEZ targets
       s.targets.forEach((tgt:any)=>{if(tgt.hit)return;const dx=ball.x-tgt.x,dy=ball.y-tgt.y;if(Math.sqrt(dx*dx+dy*dy)<BALL_R+tgt.r){tgt.hit=true;s.score+=getMult(s,tgt.pts);sfx('target');vibe(15);addFloat(tgt.x,tgt.y,`+${getMult(s,tgt.pts)}`,'#ffd700');if(s.targets.every((t:any)=>t.hit)){s.targets.forEach((t:any)=>t.hit=false);startMode(s,(s.modesCompleted)%MODES.length);s.score+=getMult(s,500);}}});
       // LOCK HOLES (vault)
