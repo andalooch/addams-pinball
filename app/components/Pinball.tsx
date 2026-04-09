@@ -175,18 +175,18 @@ function buildAudio(){
   const sfx={
     bumper(c:number){const b=c>=5?1.5:c>=3?1.25:1;osc(sG,'square',500*b,0.35,0.12,200*b);nz(sG,0.15,0.06,700,2);},
     sling(){osc(sG,'sawtooth',340,0.3,0.09,85);nz(sG,0.2,0.06,1300,0.8);},
-    target(){osc(sG,'sine',1047,0.28,0.35,880);osc(sG,'sine',1319,0.12,0.25,1047,undefined,ac.currentTime+0.02);},
+    target(){osc(sG,'sine',1047,0.28,0.35,880);osc(sG,'sine',1319,0.12,0.25,1047,ac.currentTime+0.02);},
     bonus(){[523,659,784,1047,1319].forEach((f,i)=>osc(sG,'square',f,0.2,0.22,f*0.9,ac.currentTime+i*0.07));},
     flipper(){nz(sG,0.28,0.04,220,0.6);osc(sG,'sine',130,0.2,0.06,80);},
     launch(p:number){const b=90+p*280;osc(sG,'sine',b*0.4,0.5,0.05,b*1.1);osc(sG,'triangle',b,0.35,0.28,b*0.25);nz(sG,0.2,0.12,400,1.5);},
     wall(){nz(sG,0.1,0.04,500,0.5);osc(sG,'sine',180,0.07,0.04,120);},
-    drain(){osc(sG,'sawtooth',380,0.35,0.7,70);osc(sG,'sine',220,0.2,0.6,60,undefined,ac.currentTime+0.05);},
+    drain(){osc(sG,'sawtooth',380,0.35,0.7,70);osc(sG,'sine',220,0.2,0.6,60,ac.currentTime+0.05);},
     gameover(){[350,260,180,120].forEach((f,i)=>osc(sG,'sawtooth',f,0.28,0.4,f*0.7,ac.currentTime+i*0.18));},
-    ballsave(){osc(sG,'sine',880,0.3,0.12,1047);osc(sG,'sine',1047,0.2,0.1,880,undefined,ac.currentTime+0.12);},
+    ballsave(){osc(sG,'sine',880,0.3,0.12,1047);osc(sG,'sine',1047,0.2,0.1,880,ac.currentTime+0.12);},
     kickback(){osc(sG,'square',200,0.4,0.08,600);nz(sG,0.35,0.1,800,1.5);},
     tiltWarn(){osc(sG,'sawtooth',150,0.3,0.15,100);},
     tilt(){[200,150,100].forEach((f,i)=>osc(sG,'sawtooth',f,0.4,0.3,f*0.6,ac.currentTime+i*0.12));},
-    kbRecharge(){osc(sG,'sine',660,0.2,0.2,880);osc(sG,'sine',880,0.15,0.15,1047,undefined,ac.currentTime+0.1);},
+    kbRecharge(){osc(sG,'sine',660,0.2,0.2,880);osc(sG,'sine',880,0.15,0.15,1047,ac.currentTime+0.1);},
     ramp(){[400,600,900].forEach((f,i)=>osc(sG,'square',f,0.22,0.2,f*1.1,ac.currentTime+i*0.06));},
     drop(){osc(sG,'square',220,0.3,0.08,110);nz(sG,0.2,0.05,400,1);},
     dropComplete(){[300,450,600,900].forEach((f,i)=>osc(sG,'square',f,0.2,0.15,f*1.1,ac.currentTime+i*0.055));},
@@ -199,7 +199,7 @@ function buildAudio(){
     modeStart(){[400,500,630,800,1000].forEach((f,i)=>osc(sG,'sine',f,0.22,0.3,f*1.15,ac.currentTime+i*0.07));},
     skillShot(){[800,1000,1300,1600].forEach((f,i)=>osc(sG,'square',f,0.28,0.2,f*1.1,ac.currentTime+i*0.05));},
     bearTrap(){osc(sG,'sawtooth',120,0.4,0.08,60);nz(sG,0.4,0.1,300,1.5);[300,200].forEach((f,i)=>osc(sG,'square',f,0.3,0.2,f*0.5,ac.currentTime+i*0.06));},
-    swamp(){osc(sG,'sine',80,0.4,0.6,40);nz(sG,0.3,0.4,200,0.5);osc(sG,'sine',160,0.2,0.5,60,undefined,ac.currentTime+0.1);},
+    swamp(){osc(sG,'sine',80,0.4,0.6,40);nz(sG,0.3,0.4,200,0.5);osc(sG,'sine',160,0.2,0.5,60,ac.currentTime+0.1);},
     xball(){[800,1000,1300,1600,2000].forEach((f,i)=>osc(sG,'square',f,0.28,0.22,f*1.1,ac.currentTime+i*0.05));nz(sG,0.3,0.2,2000,1);},
   };
   return{ac,master,startMusic(){if(ip)return;ip=true;nt=ac.currentTime+0.1;ss=0;sched();},stopMusic(){ip=false;clearTimeout(st);},get isPlaying(){return ip;},...sfx};
@@ -749,9 +749,37 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
   function toggleMusic(){const a=audioRef.current;if(!a)return;if(a.isPlaying){a.stopMusic();setMusicOn(false);}else{a.startMusic();setMusicOn(true);}}
   const btn:React.CSSProperties={background:'none',border:'1px solid #5a3a00',borderRadius:4,color:'#c8900a',cursor:'pointer',fontSize:14,padding:'2px 8px',lineHeight:'1',fontFamily:'"Courier New",monospace'};
 
+  // Rock-solid viewport sizing for iOS — JS measured, not CSS dvh
+  const [viewport,setViewport]=useState({w:0,h:0});
+  useEffect(()=>{
+    function measure(){
+      // Use visualViewport on iOS (accounts for keyboard, browser chrome)
+      const vv=(window as any).visualViewport;
+      const w=vv?vv.width:window.innerWidth;
+      const h=vv?vv.height:window.innerHeight;
+      setViewport({w,h});
+    }
+    measure();
+    window.addEventListener('resize',measure);
+    const vv=(window as any).visualViewport;
+    if(vv){vv.addEventListener('resize',measure);vv.addEventListener('scroll',measure);}
+    return()=>{
+      window.removeEventListener('resize',measure);
+      if(vv){vv.removeEventListener('resize',measure);vv.removeEventListener('scroll',measure);}
+    };
+  },[]);
+
+  const scale=viewport.w>0?Math.min(viewport.w/W,viewport.h/H):1;
+  const cw=Math.round(W*scale);
+  const ch=Math.round(H*scale);
+
   return(
     <div style={{position:'fixed',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'#000408',overflow:'hidden',userSelect:'none'}}>
-      <canvas ref={canvasRef} width={W} height={H} style={{display:'block',touchAction:'none',maxWidth:'100%',maxHeight:'100%',width:'auto',height:'auto',aspectRatio:`${W}/${H}`,border:'2px solid #c8900a',boxShadow:'0 0 50px rgba(100,30,200,0.5),0 0 100px rgba(200,144,10,0.2)'}}/>
+      <canvas ref={canvasRef} width={W} height={H}
+        style={{display:'block',touchAction:'none',
+          width:cw||'auto',height:ch||'auto',
+          border:'2px solid #c8900a',
+          boxShadow:'0 0 50px rgba(100,30,200,0.5),0 0 100px rgba(200,144,10,0.2)'}}/>
       <div style={{position:'absolute',top:8,right:8,zIndex:10,display:'flex',gap:6}}>
         <button onClick={toggleMute} style={btn}>{muted?'🔇':'🔊'}</button>
         <button onClick={toggleMusic} style={btn}>{musicOn?'⏸':'▶'}</button>
