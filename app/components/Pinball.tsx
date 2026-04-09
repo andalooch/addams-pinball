@@ -298,6 +298,7 @@ export default function AdamsPinball(){
   const audioRef=useRef<any>(null);
   const muteRef=useRef(false);
   const wallCool=useRef(0);
+  const nudgeRef=useRef<(dir:'L'|'R')=>void>(()=>{});
   const bdRef=useRef<HTMLCanvasElement|null>(null);
   const [muted,setMuted]=useState(false);
   const [musicOn,setMusicOn]=useState(true);
@@ -1124,7 +1125,7 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
 
     function loop(){update();draw();animRef.current=requestAnimationFrame(loop);}
 
-    function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();resumeAC();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key==='ArrowLeft'&&e.shiftKey)doNudge('L');if(e.key==='ArrowRight'&&e.shiftKey)doNudge('R');if(e.key.toLowerCase()==='n')doNudge(Math.random()<0.5?'L':'R');if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
+    function onKeyDown(e:KeyboardEvent){const s=sRef.current;ensureMusic();resumeAC();if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=true;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=true;if(e.key==='ArrowLeft'&&e.shiftKey)nudgeRef.current('L');if(e.key==='ArrowRight'&&e.shiftKey)nudgeRef.current('R');if(e.key.toLowerCase()==='n')nudgeRef.current(Math.random()<0.5?'L':'R');if(e.key===' '||e.key==='ArrowDown'){e.preventDefault();if(s.gameOver){sRef.current=mkState();return;}if(s.inLane)s.charging=true;}}
     function onKeyUp(e:KeyboardEvent){const s=sRef.current;if(['ArrowLeft','z','Z'].includes(e.key))s.leftUp=false;if(['ArrowRight','/','?','x','X'].includes(e.key))s.rightUp=false;if((e.key===' '||e.key==='ArrowDown')&&s.inLane&&s.charging){e.preventDefault();sfx('launch',s.plunger);let kvx=-0.3;if(s.plunger<0.28){kvx=-2.2;}else if(s.plunger<0.56){kvx=-1.6;}else if(s.plunger<0.82){kvx=-0.8;}else{kvx=-0.2;}if(s.skillShotActive){const sz=SKILL_ZONES[s.skillShotTarget];if(s.plunger>=sz.min&&s.plunger<=sz.max){setTimeout(()=>{if(sRef.current){const sc=sRef.current;sc.score+=2500;sfx('skillShot');vibe([20,20,20,60]);addFloat(200,200,'SKILL SHOT! +2500','#ffff00');sc.skillShotActive=false;}},300);}}s.balls.push({x:362,y:s.laneY,vx:kvx,vy:-(s.plunger*19+5),fromLane:true});s.inLane=false;s.charging=false;s.plunger=0;s.ballSaveTimer=BALL_SAVE_FRAMES;}}
 
     function onTouchStart(e:TouchEvent){
@@ -1166,6 +1167,7 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
     s.floats.push({x:200,y:400,text:dir==='L'?'◀ NUDGE':'NUDGE ▶',color:'#cc8800',t:70});
   }
 
+  nudgeRef.current=doNudge;
   function toggleMute(){muteRef.current=!muteRef.current;setMuted(muteRef.current);if(audioRef.current)audioRef.current.master.gain.setValueAtTime(muteRef.current?0:0.7,audioRef.current.ac.currentTime);if(muteRef.current)audioRef.current?.stopMusic();}
   function toggleMusic(){const a=audioRef.current;if(!a)return;if(a.isPlaying){a.stopMusic();setMusicOn(false);}else{a.startMusic();setMusicOn(true);}}
   const btn:React.CSSProperties={background:'none',border:'1px solid #5a3a00',borderRadius:4,color:'#c8900a',cursor:'pointer',fontSize:14,padding:'2px 8px',lineHeight:'1',fontFamily:'"Courier New",monospace'};
@@ -1214,19 +1216,17 @@ ball.x=SWAMP.x;ball.y=SWAMP.y;ball.vx=5+Math.random()*3;ball.vy=-(9+Math.random(
                 <div style={{color:'rgba(200,144,10,0.6)',fontSize:10,marginTop:4,fontFamily:'"Courier New",monospace'}}>iOS requires a tap to unlock audio</div>
               </div>
             </div>}
-            {/* Nudge buttons — visible when ball is in play */}
-            {!sRef.current?.inLane&&!sRef.current?.gameOver&&!sRef.current?.bonusActive&&(
-              <div style={{position:'absolute',bottom:38,left:0,right:0,display:'flex',justifyContent:'space-between',padding:'0 8px',pointerEvents:'none',zIndex:5}}>
-                <button onPointerDown={e=>{e.preventDefault();unlockAudio();doNudge('L');}}
-                  style={{pointerEvents:'all',background:'rgba(0,0,0,0.7)',border:'1px solid #664400',borderRadius:6,color:'#cc8800',fontSize:11,padding:'5px 10px',fontFamily:'"Courier New",monospace',letterSpacing:1,touchAction:'none',opacity:sRef.current?.nudgeCooldown>0?0.35:0.85}}>
-                  ◀ NUDGE
-                </button>
-                <button onPointerDown={e=>{e.preventDefault();unlockAudio();doNudge('R');}}
-                  style={{pointerEvents:'all',background:'rgba(0,0,0,0.7)',border:'1px solid #664400',borderRadius:6,color:'#cc8800',fontSize:11,padding:'5px 10px',fontFamily:'"Courier New",monospace',letterSpacing:1,touchAction:'none',opacity:sRef.current?.nudgeCooldown>0?0.35:0.85}}>
-                  NUDGE ▶
-                </button>
-              </div>
-            )}
+            {/* Nudge buttons — always rendered, always available */}
+            <div style={{position:'absolute',bottom:36,left:0,right:0,display:'flex',justifyContent:'space-between',padding:'0 6px',zIndex:5,pointerEvents:'none'}}>
+              <button onPointerDown={e=>{e.preventDefault();unlockAudio();doNudge('L');}}
+                style={{pointerEvents:'all',background:'rgba(0,0,0,0.72)',border:'1px solid #664400',borderRadius:6,color:'#cc8800',fontSize:11,padding:'6px 12px',fontFamily:'"Courier New",monospace',letterSpacing:1,touchAction:'none',userSelect:'none'}}>
+                ◀ NUDGE
+              </button>
+              <button onPointerDown={e=>{e.preventDefault();unlockAudio();doNudge('R');}}
+                style={{pointerEvents:'all',background:'rgba(0,0,0,0.72)',border:'1px solid #664400',borderRadius:6,color:'#cc8800',fontSize:11,padding:'6px 12px',fontFamily:'"Courier New",monospace',letterSpacing:1,touchAction:'none',userSelect:'none'}}>
+                NUDGE ▶
+              </button>
+            </div>
             {/* Initials entry overlay */}
             {showInitials&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.88)',zIndex:30}}>
               <div style={{background:'#0a0010',border:'2px solid #c8900a',borderRadius:10,padding:'28px 32px',textAlign:'center',minWidth:260}}>
